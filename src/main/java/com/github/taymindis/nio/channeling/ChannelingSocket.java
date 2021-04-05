@@ -24,6 +24,7 @@ public interface ChannelingSocket {
 
     /**
      IO Task API builder
+     * @param  remote remote address
      * @return ChannelingSocket to ready for run
      */
     ChannelingSocket withConnect(SocketAddress remote);
@@ -45,6 +46,9 @@ public interface ChannelingSocket {
 
     /**
      IO Task function call
+     *
+     * @param  remote remote address
+     * @param  then then predicate
      *
      */
     void connect(SocketAddress remote, Then then);
@@ -82,8 +86,8 @@ public interface ChannelingSocket {
     /**
      * For checking by bytebuffer curr been using
      *
-     * @param whenPredicate
-     * @return
+     * @param whenPredicate when predicate
+     * @return ChannelingSocket
      */
     ChannelingSocket when(WhenWritingByteBuffer whenPredicate);
     ChannelingSocket when(WhenReadingByteBuffer whenPredicate);
@@ -91,40 +95,40 @@ public interface ChannelingSocket {
     /**
      * For checking by socketchannel
      *
-     * @param whenPredicate
-     * @return
+     * @param whenPredicate when predicate
+     * @return ChannelingSocket
      */
     ChannelingSocket when(WhenSocketChannel whenPredicate);
 
     /**
      * For Socketchannel when connecting status whether is connected
      *
-     * @param whenPredicate
-     * @return
+     * @param whenPredicate when predicate
+     * @return ChannelingSocket
      */
     ChannelingSocket when(WhenConnectingStatus whenPredicate);
 
     /**
      * For Socketchannel when closing status whether is connected
      *
-     * @param whenPredicate
-     * @return
+     * @param whenPredicate when predicate
+     * @return ChannelingSocket
      */
     ChannelingSocket when(WhenClosingStatus whenPredicate);
 
     /**
      * For Socketchannel when channelingsocket been call in
      *
-     * @param whenPredicate
-     * @return
+     * @param whenPredicate when predicate
+     * @return ChannelingSocket
      */
     ChannelingSocket when(WhenChannelingSocket whenPredicate);
 
     /**
      * For Socketchannel where after read write process
      *
-     * @param whenReadWriteProcess
-     * @return
+     * @param whenReadWriteProcess when read write process predicate
+     * @return ChannelingSocket
      */
     ChannelingSocket when(WhenReadWriteProcess whenReadWriteProcess);
 
@@ -152,6 +156,7 @@ public interface ChannelingSocket {
 
     /**
      * Internal Core only scope
+     * @param rt num of bytes
      */
     void setLastProcessedBytes(int rt);
     void setPredicateTask(Predicate<?> predicateTask);

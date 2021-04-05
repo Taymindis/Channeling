@@ -50,7 +50,8 @@ public class Channeling {
      * @param peekPerNano           peekPerms per count per socket, default is 16ms
      * @param connectionTimeoutInMs time in milisecond to get timeoutException
      * @param readWriteTimeOutInMs  time in milisecond to get timeoutException
-     * @return
+     * @return Channeling
+     * @throws IOException  Throws IO Exception
      */
     public static Channeling startNewChanneling(int workers, int peekPerNano, long connectionTimeoutInMs, long readWriteTimeOutInMs) throws IOException {
         return startNewChanneling(workers, peekPerNano,
@@ -162,10 +163,10 @@ public class Channeling {
      Proxy Scope
      *
      *
-     * @param proxy
-     * @param socketChannel
-     * @param attachment
-     * @return
+     * @param proxy the ChannelingProxy proxy config
+     * @param socketChannel SocketChannel reference
+     * @param attachment context attachment
+     * @return ChannelingSocket
      */
     public ChannelingSocket wrapProxy(ChannelingProxy proxy, SocketChannel socketChannel, Object attachment) {
         return wrapProxy(proxy, socketChannel, attachment, 1024);
