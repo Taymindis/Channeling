@@ -6,7 +6,7 @@
 
     <groupId>com.github.taymindis</groupId>
     <artifactId>Channeling</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <name>Channeling background non block IO queue</name>
     <description>
         It's client mode socket channel but async run background queue with non blocking,
