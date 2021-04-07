@@ -59,7 +59,7 @@ public class HttpRequestBuilder {
 
         buildRequest
                 .append(method.toUpperCase()).append(' ')
-                .append(path).append(args.replaceAll("\\s", "+")).append(' ')
+                .append(path).append(args.replace(' ', '+')).append(' ')
                 .append("HTTP/1.1\r\n")
                 .append(headersBuilder.toString()).append("\r\n")
         ;
