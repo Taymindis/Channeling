@@ -562,4 +562,10 @@ class ChannelSSLRunner implements ChannelingSocket {
 
         return bytesCanRead;
     }
+
+    protected static void shutdownSSLService() {
+        if(sslThreadPool != null) {
+            sslThreadPool.shutdownNow();
+        }
+    }
 }

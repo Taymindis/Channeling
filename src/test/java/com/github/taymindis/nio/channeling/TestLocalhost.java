@@ -37,7 +37,16 @@ public class TestLocalhost {
 //        System.setProperty("jdk.tls.client.protocols", "TLSv1.2");
         CountDownLatch countDownLatch = new CountDownLatch(1);
         ChannelingSocket cs = channeling.wrap(null);
-
+        /** DO NOT USE RAW STRING, use HttpRequestBuilder instead **/
+        /** DO NOT USE RAW STRING, use HttpRequestBuilder instead **/
+        /** DO NOT USE RAW STRING, use HttpRequestBuilder instead **/
+        /** DO NOT USE RAW STRING, use HttpRequestBuilder instead **/
+        /** DO NOT USE RAW STRING, use HttpRequestBuilder instead **/
+        /** DO NOT USE RAW STRING, use HttpRequestBuilder instead **/
+        /** DO NOT USE RAW STRING, use HttpRequestBuilder instead **/
+        /** DO NOT USE RAW STRING, use HttpRequestBuilder instead **/
+        /** DO NOT USE RAW STRING, use HttpRequestBuilder instead **/
+        /** Please check the test case TestHttpBuilder **/
         HttpRequest httpRequest = new HttpRequest(
                 cs,
                 "127.0.0.1",

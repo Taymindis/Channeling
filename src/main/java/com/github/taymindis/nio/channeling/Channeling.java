@@ -259,6 +259,7 @@ public class Channeling {
     public void shutdown() {
         active = false;
         eventRunner.shutdown();
+        ChannelSSLRunner.shutdownSSLService();
     }
 
 

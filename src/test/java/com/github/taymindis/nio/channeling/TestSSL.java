@@ -37,6 +37,16 @@ public class TestSSL {
         CountDownLatch countDownLatch = new CountDownLatch(1);
         ChannelingSocket cs = channeling.wrapSSL("TLSv1.2", "mycamel.abcfoo.com", 443, null);
         String host = "mycamel.abcfoo.com";
+        /** DO NOT USE RAW STRING, use HttpRequestBuilder instead **/
+        /** DO NOT USE RAW STRING, use HttpRequestBuilder instead **/
+        /** DO NOT USE RAW STRING, use HttpRequestBuilder instead **/
+        /** DO NOT USE RAW STRING, use HttpRequestBuilder instead **/
+        /** DO NOT USE RAW STRING, use HttpRequestBuilder instead **/
+        /** DO NOT USE RAW STRING, use HttpRequestBuilder instead **/
+        /** DO NOT USE RAW STRING, use HttpRequestBuilder instead **/
+        /** DO NOT USE RAW STRING, use HttpRequestBuilder instead **/
+        /** DO NOT USE RAW STRING, use HttpRequestBuilder instead **/
+        /** Please check the test case TestHttpBuilder **/
         HttpRequest httpRequest = new HttpRequest(
                 cs,
                 host,
