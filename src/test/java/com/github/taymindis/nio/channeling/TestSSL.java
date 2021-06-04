@@ -101,7 +101,7 @@ public class TestSSL {
 
     @AfterAll
     public static void afterAllTested() {
-        channeling.shutdown();
+        channeling.shutdownNow();
     }
 
 

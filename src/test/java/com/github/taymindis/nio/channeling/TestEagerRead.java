@@ -54,7 +54,7 @@ public class TestEagerRead {
         Thread.sleep(1500);
         socket.noEagerRead();
         countDownLatch.await();
-        channeling.shutdown();
+        channeling.shutdownNow();
         Assertions.assertTrue(true);
 
     }

@@ -92,7 +92,7 @@ public class TestProxySSL {
 
     @AfterAll
     public static void afterAllTested() {
-        channeling.shutdown();
+        channeling.shutdownNow();
     }
 
 

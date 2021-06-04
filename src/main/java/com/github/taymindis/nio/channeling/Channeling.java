@@ -254,8 +254,14 @@ public class Channeling {
     }
 
     /**
-     * When shutdown, eventRunner service thread will be shutdown
+     * When shutdown now, eventRunner service thread will be shutdown immediately
      */
+    public void shutdownNow() {
+        active = false;
+        eventRunner.shutdownNow();
+        ChannelSSLRunner.shutdownSSLService();
+    }
+
     public void shutdown() {
         active = false;
         eventRunner.shutdown();

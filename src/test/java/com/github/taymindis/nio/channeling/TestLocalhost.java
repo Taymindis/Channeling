@@ -99,7 +99,7 @@ public class TestLocalhost {
 
     @AfterAll
     public static void afterAllTested() {
-        channeling.shutdown();
+        channeling.shutdownNow();
     }
 
 

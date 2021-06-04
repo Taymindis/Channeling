@@ -59,7 +59,7 @@ public class Test1 {
         logger.info("SETUP FINISHED");
 
         countDownLatch.await();
-        channeling.shutdown();
+        channeling.shutdownNow();
         Assertions.assertTrue(true);
     }
 
@@ -94,7 +94,7 @@ public class Test1 {
         logger.info("TESTING NORMAL SOCKET");
 
         countDownLatch.await();
-        channeling.shutdown();
+        channeling.shutdownNow();
         Assertions.assertTrue(true);
     }
 }

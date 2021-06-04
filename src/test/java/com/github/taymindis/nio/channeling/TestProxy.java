@@ -101,7 +101,7 @@ public class TestProxy {
 
     @AfterAll
     public static void afterAllTested() {
-        channeling.shutdown();
+        channeling.shutdownNow();
     }
 
 

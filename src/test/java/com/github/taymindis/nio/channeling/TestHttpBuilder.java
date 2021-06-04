@@ -98,7 +98,7 @@ public class TestHttpBuilder {
 
     @AfterAll
     public static void afterAllTested() {
-        channeling.shutdown();
+        channeling.shutdownNow();
     }
 
 
