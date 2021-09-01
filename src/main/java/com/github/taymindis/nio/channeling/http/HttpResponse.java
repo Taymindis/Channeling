@@ -11,6 +11,8 @@ import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.zip.GZIPInputStream;
 
 public class HttpResponse {
@@ -20,6 +22,9 @@ public class HttpResponse {
     private int bodyOffset;
     private HttpResponseType responseType;
     private ContentEncodingType contentEncodingType;
+    private Integer code = null;
+    private String statusText = null;
+    private Map<String,String> headerMap = null;
 
     public String getHeaders() {
         return headers;
@@ -172,6 +177,61 @@ public class HttpResponse {
         this.responseType = responseType;
     }
 
+    public int getCode() {
+        if(headerMap == null) {
+            parseHeaders(this);
+        }
+        return code;
+    }
+
+    public String getStatusText() {
+        if(headerMap == null) {
+            parseHeaders(this);
+        }
+        return statusText;
+    }
+
+    public String getHeader(String key) {
+        if(headerMap == null) {
+            parseHeaders(this);
+        }
+        return headerMap.get(key);
+    }
+
+    public Map<String,String> getHeaderAsMap() {
+        if(headerMap == null) {
+            parseHeaders(this);
+        }
+        return headerMap;
+    }
+
+    private static void parseHeaders(HttpResponse response) {
+        String headers = response.getHeaders();
+
+        if(headers != null) {
+
+            Map<String, String> headerMap = new HashMap();
+
+            String[] keyValues = headers.split("\\r?\\n");
+
+            if(keyValues.length < 2) {
+                return;
+            }
+
+            String[] statusText = keyValues[0].split("\\s", 3);
+
+            response.code = Integer.parseInt(statusText[1]);
+            response.statusText = statusText[2];
+
+            for (int i = 1, size = keyValues.length; i < size; i++) {
+                String header = keyValues[i];
+                String[] keyPair = header.split(":\\s?", 2);
+                headerMap.putIfAbsent(keyPair[0], keyPair[1]);
+            }
+            response.headerMap = headerMap;
+        }
+
+    }
 
     public static boolean isCompressed(final byte[] compressed) {
         return (compressed[0] == (byte) (GZIPInputStream.GZIP_MAGIC)) && (compressed[1] == (byte) (GZIPInputStream.GZIP_MAGIC >> 8));

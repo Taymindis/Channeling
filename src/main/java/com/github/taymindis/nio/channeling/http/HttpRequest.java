@@ -5,20 +5,22 @@ import com.github.taymindis.nio.channeling.WhenConnectingStatus;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
 public class HttpRequest implements SingleRequest {
     private int totalRead = 0, totalWrite, requiredLength, bodyOffset;
-    private final ByteBuffer readBuffer;
-    private final String messageToSend;
-    private final String host;
-    private final int port;
-    private final ByteArrayOutputStream response;
-    private final ChannelingSocket socket;
+    private ByteBuffer readBuffer;
+    private String messageToSend;
+    private String host;
+    private int port;
+    private ByteArrayOutputStream response;
+    private ChannelingSocket socket;
     private Consumer<HttpResponse> result;
     private Consumer<Exception> error;
     private byte[] lastConsumedBytes;
@@ -26,6 +28,8 @@ public class HttpRequest implements SingleRequest {
     private ContentEncodingType contentEncodingType;
     private HttpResponse httpResponse;
     private final boolean enableGzipDecompression;
+    private RedirectionSocket redirectionSocket;
+    private String prevRedirectionLoc;
 
     public HttpRequest(ChannelingSocket socket,
                        String host, int port,
@@ -47,6 +51,17 @@ public class HttpRequest implements SingleRequest {
                        String messageToSend,
                        int minInputBufferSize,
                        boolean enableGzipDecompression) {
+        this(socket, host, port, messageToSend, minInputBufferSize, enableGzipDecompression, null);
+
+    }
+
+    protected HttpRequest(ChannelingSocket socket,
+                       String host,
+                       int port,
+                       String messageToSend,
+                       int minInputBufferSize,
+                       boolean enableGzipDecompression,
+                       RedirectionSocket redirectionSocket) {
         this.readBuffer = ByteBuffer.allocate(socket.isSSL() ? socket.getSSLMinimumInputBufferSize() : minInputBufferSize);
         this.response = new ByteArrayOutputStream();
         this.messageToSend = messageToSend;
@@ -57,6 +72,8 @@ public class HttpRequest implements SingleRequest {
         this.contentEncodingType = ContentEncodingType.PENDING;
         this.bodyOffset = -1;
         this.enableGzipDecompression = enableGzipDecompression;
+        this.redirectionSocket = redirectionSocket;
+        this.prevRedirectionLoc = null;
     }
 
     public void get(Consumer<HttpResponse> result, Consumer<Exception> error) {
@@ -80,7 +97,6 @@ public class HttpRequest implements SingleRequest {
     public void setTotalWrite(int totalWrite) {
         this.totalWrite = totalWrite;
     }
-
 
     @Override
     public void connectAndThen(ChannelingSocket channelingSocket) {
@@ -204,7 +220,7 @@ public class HttpRequest implements SingleRequest {
     }
 
 
-    private void transferEncodingResponse(ChannelingSocket channelingSocket) throws IOException {
+    private void transferEncodingResponse(ChannelingSocket channelingSocket) throws Exception {
         int len = lastConsumedBytes.length;
 
         String last5Chars = new String(Arrays.copyOfRange(lastConsumedBytes, len - 5, len), StandardCharsets.UTF_8);
@@ -214,11 +230,55 @@ public class HttpRequest implements SingleRequest {
             httpResponse.setRawBytes(response.toByteArray());
             httpResponse.setBodyOffset(bodyOffset);
             updateResponseType(httpResponse);
+
+            if(redirectionSocket != null) {
+                Map<String, String> headers = httpResponse.getHeaderAsMap();
+                if (headers.containsKey("Location")) {
+                    String location = headers.get("Location");
+                    channelingSocket.close(cs->{});
+                    redirectingRequest(location);
+                    get(result, error);
+                    return;
+                }
+            }
             result.accept(httpResponse);
             channelingSocket.close(this::closeAndThen);
         } else {
             eagerRead(channelingSocket);
         }
+    }
+
+    private void redirectingRequest(String location) throws Exception {
+        URI uri = new URI(location);
+        host = uri.getHost();
+        boolean isSSL = uri.getScheme().startsWith("https");
+
+        port = uri.getPort();
+
+        if(port < 0) {
+            port = isSSL ? 443 : 80;
+        }
+
+        this.socket = redirectionSocket.request(host, port, isSSL);
+        if(socket.isSSL()) {
+            this.readBuffer = ByteBuffer.allocate(socket.getSSLMinimumInputBufferSize());
+        } else {
+            this.readBuffer.clear();
+        }
+        this.response.close();
+        this.response = new ByteArrayOutputStream();
+        this.responseType = HttpResponseType.PENDING;
+        this.contentEncodingType = ContentEncodingType.PENDING;
+        this.bodyOffset = -1;
+        this.prevRedirectionLoc = location;
+
+        HttpRequestBuilder requestBuilder = new HttpRequestBuilder();
+        requestBuilder.setMethod("GET");
+        requestBuilder.addHeader("Host", host + ":"+port);
+        requestBuilder.setPath( uri.getPath() + (uri.getRawQuery()!=null? "?"+uri.getRawQuery():""));
+
+
+        this.messageToSend = requestBuilder.toString();
     }
 
     private void updateResponseType(HttpResponse httpResponse) throws IOException {
@@ -229,12 +289,26 @@ public class HttpRequest implements SingleRequest {
         }
     }
 
-    private void contentLengthResponse(ChannelingSocket channelingSocket) throws IOException {
+    private void contentLengthResponse(ChannelingSocket channelingSocket) throws Exception {
         if (totalRead >= requiredLength) {
             channelingSocket.noEagerRead();
             httpResponse.setRawBytes(response.toByteArray());
             httpResponse.setBodyOffset(bodyOffset);
             updateResponseType(httpResponse);
+
+            if(redirectionSocket != null) {
+                Map<String, String> headers = httpResponse.getHeaderAsMap();
+                if (headers.containsKey("Location")) {
+                    String location = headers.get("Location");
+                    if(!location.equals(prevRedirectionLoc)) {
+                        channelingSocket.close(cs -> {});
+                        redirectingRequest(location);
+                        get(result, error);
+                        return;
+                    }
+                }
+            }
+
             result.accept(httpResponse);
             channelingSocket.close(this::closeAndThen);
         } else {
