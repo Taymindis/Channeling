@@ -235,10 +235,12 @@ public class HttpRequest implements SingleRequest {
                 Map<String, String> headers = httpResponse.getHeaderAsMap();
                 if (headers.containsKey("Location")) {
                     String location = headers.get("Location");
-                    channelingSocket.close(cs->{});
-                    redirectingRequest(location);
-                    get(result, error);
-                    return;
+                    if(!location.equals(prevRedirectionLoc)) {
+                        channelingSocket.close(cs -> {});
+                        redirectingRequest(location);
+                        get(result, error);
+                        return;
+                    }
                 }
             }
             result.accept(httpResponse);
