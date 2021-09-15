@@ -1,5 +1,6 @@
 package com.github.taymindis.nio.channeling;
 
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -16,7 +17,7 @@ import java.util.function.Predicate;
 class ChannelServerRunner extends AbstractChannelRunner {
 
     private final ServerSocketChannel ssc;
-    private final SSLEngine sslEngine;
+    private final SSLContext sslContext;
     private final int sslWorker;
     private final int buffSize;
     private Object context;
@@ -36,13 +37,13 @@ class ChannelServerRunner extends AbstractChannelRunner {
     private final boolean isSSL;
 
     /**
-     * @param sslEngine      sslEngine
+     * @param sslContext     sslContext
      * @param hostAddress    hostAddres
      * @param port           port
      * @param context        context attachment
      * @param channelRunners runner processor
      */
-    ChannelServerRunner(SSLEngine sslEngine, int sslWorker, Object context,
+    ChannelServerRunner(SSLContext sslContext, int sslWorker, Object context,
                         int buffSize, String hostAddress, int port,
                         Queue<ChannelingSocket> channelRunners) throws IOException {
         this.ssc = ServerSocketChannel.open();
@@ -50,8 +51,8 @@ class ChannelServerRunner extends AbstractChannelRunner {
         this.forRunners = channelRunners;
         this.ssc.socket().bind(new InetSocketAddress(hostAddress, port));
         this.ssc.configureBlocking(false);
-        this.sslEngine=sslEngine;
-        this.isSSL = sslEngine != null;
+        this.sslContext=sslContext;
+        this.isSSL = sslContext != null;
         this.sslWorker = sslWorker;
         this.buffSize = buffSize;
     }
@@ -156,5 +157,9 @@ class ChannelServerRunner extends AbstractChannelRunner {
     @Override
     public boolean isSSL() {
         return isSSL;
+    }
+
+    SSLContext getSslContext() {
+        return sslContext;
     }
 }

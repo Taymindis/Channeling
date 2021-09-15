@@ -38,14 +38,15 @@ class ChannelingProcessor implements Runnable {
                 while (queue.peek() != null) {
                     socket = queue.poll();
                     try {
-                        if(socket instanceof ChannelServerRunner) {
+                        if (socket instanceof ChannelServerRunner) {
                             registerServerIOTask(socket);
                         } else {
                             registerIOTask(socket);
                         }
                     } catch (IOException e) {
                         log.error(e.getMessage(), e);
-                        socket.close(channelingSocket -> {});
+                        socket.close(channelingSocket -> {
+                        });
                         socket.getErrorCallBack().error(socket, e);
                     }
                 }
@@ -84,7 +85,7 @@ class ChannelingProcessor implements Runnable {
                 }
 
                 try {
-                    if(channelingSocket instanceof ChannelServerRunner) {
+                    if (channelingSocket instanceof ChannelServerRunner) {
                         if (doServerIO(channelingSocket, selectionKey)) {
                         } else {
                             log.debug("pending channel");
@@ -97,7 +98,8 @@ class ChannelingProcessor implements Runnable {
                         }
                     }
                 } catch (Exception e) {
-                    channelingSocket.close(csClosed -> {});
+                    channelingSocket.close(csClosed -> {
+                    });
                     channelingSocket.getErrorCallBack().error(channelingSocket, e);
                 }
             }
@@ -189,10 +191,6 @@ class ChannelingProcessor implements Runnable {
             $sc = socket.getSocketChannel();
         }
         switch (socket.getIoTask()) {
-            case DO_ACCEPT:
-                doRegister(SelectionKey.OP_ACCEPT, socket, $sc);
-//                $sc.keyFor(nioSelector).cancel();
-                break;
             case DO_CONNECT:
                 $sc.connect(socket.getRemoteAddress());
                 doRegister(SelectionKey.OP_CONNECT, socket, $sc);
@@ -204,8 +202,8 @@ class ChannelingProcessor implements Runnable {
             case DO_CLOSE:
 //                doRegister(SelectionKey.OP_WRITE, socket, $sc);
                 if ($sc.isOpen()) {
-                    if(socket.isSSL()) {
-                        SSLSocketChannel sslSocketChannel = ((SSLSocketChannel)socket.getSocketChannel());
+                    if (socket.isSSL()) {
+                        SSLSocketChannel sslSocketChannel = ((SSLSocketChannel) socket.getSocketChannel());
                         sslSocketChannel.getWrappedSocketChannel().keyFor(nioSelector).cancel();
                         sslSocketChannel.implCloseSelectableChannel();
                     } else {
@@ -235,7 +233,7 @@ class ChannelingProcessor implements Runnable {
         }
     }
 
-private void registerServerIOTask(ChannelingSocket socket) throws IOException {
+    private void registerServerIOTask(ChannelingSocket socket) throws IOException {
         ServerSocketChannel $ssc = null;
         if (socket.isSSL()) {
             // TODO
@@ -246,6 +244,7 @@ private void registerServerIOTask(ChannelingSocket socket) throws IOException {
         switch (socket.getIoTask()) {
             case DO_ACCEPT:
                 doRegister(SelectionKey.OP_ACCEPT, socket, $ssc);
+                //                $sc.keyFor(nioSelector).cancel();
                 break;
             default:
                 throw new IOException("Ambiguous channeling action! ");
@@ -262,6 +261,7 @@ private void registerServerIOTask(ChannelingSocket socket) throws IOException {
         }
 
     }
+
     private void doRegister(int interested, ChannelingSocket socket, ServerSocketChannel $sc) throws ClosedChannelException {
         SelectionKey key = $sc.keyFor(this.nioSelector);
         if (key != null && key.isValid()) {
@@ -289,8 +289,8 @@ private void registerServerIOTask(ChannelingSocket socket) throws IOException {
         if (socket.tryRemoveEagerRead()) {
             // If removed eager read but current IO is do write, then don't remove do write event
             if (ioTask != ChannelingTask.DO_WRITE) {
-                if(socket.isSSL()) {
-                    SocketChannel nativeSocketChannel = ((SSLSocketChannel)$sc).getWrappedSocketChannel();
+                if (socket.isSSL()) {
+                    SocketChannel nativeSocketChannel = ((SSLSocketChannel) $sc).getWrappedSocketChannel();
                     doRegister(nativeSocketChannel.keyFor(nioSelector).interestOps() & ~SelectionKey.OP_WRITE, socket, nativeSocketChannel);
                 } else {
                     doRegister($sc.keyFor(nioSelector).interestOps() & ~SelectionKey.OP_WRITE, socket, $sc);
@@ -308,7 +308,7 @@ private void registerServerIOTask(ChannelingSocket socket) throws IOException {
                 if (key.isValid() && key.isReadable()) {
                     return doRead(socket, $sc, key);
                 } else if (socket.isEagerRead()) {
-                    if(socket.isSSL()) {
+                    if (socket.isSSL()) {
                         return doRead(socket, $sc, key);
                     }
                     return doPredicateThenCallback(socket, 0, $sc, key);
@@ -348,6 +348,7 @@ private void registerServerIOTask(ChannelingSocket socket) throws IOException {
                 throw new IOException("Ambiguous channeling action! ");
         }
     }
+
     private boolean doServerIO(ChannelingSocket socket, SelectionKey key) throws IOException, TimeoutException {
         ServerSocketChannel $ssc = socket.getServerSocketChannel();
 
@@ -356,7 +357,7 @@ private void registerServerIOTask(ChannelingSocket socket) throws IOException {
         switch (ioTask) {
             case DO_ACCEPT:
                 if (key.isValid() && key.isAcceptable()) {
-                    return doPredicateThenCallback(socket, 0,null, key);
+                    return doPredicateThenCallback(socket, 0, null, key);
                 }
                 return false;
             default:

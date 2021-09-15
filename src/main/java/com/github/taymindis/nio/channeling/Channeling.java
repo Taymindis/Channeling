@@ -145,28 +145,19 @@ public class Channeling {
                                           Object attachment,
                                           String hostAddress,
                                           int port) throws Exception {
-        return wrapSSLServer(sslContext.createSSLEngine(), attachment, hostAddress, port);
-    }
 
-    public ChannelingSocket wrapSSLServer(SSLEngine engine,
-                                          Object attachment,
-                                          String hostAddress,
-                                          int port) throws Exception {
-        if(engine != null) {
-            engine.setUseClientMode(false);
-        }
         if (this.numOfSSLWoker < 0) {
             throw new Exception("enableSSL is required ...");
         }
 
         int tix = (int) (Thread.currentThread().getId() % this.nWorker);
-        return new ChannelServerRunner(engine, this.numOfSSLWoker,attachment, 1024, hostAddress, port, channelQueues[tix]);
+        return new ChannelServerRunner(sslContext, this.numOfSSLWoker,attachment, 1024, hostAddress, port, channelQueues[tix]);
     }
 
     public ChannelingSocket wrapServer(Object attachment,
                                           String hostAddress,
                                           int port) throws Exception {
-        return wrapSSLServer((SSLEngine)null, attachment, hostAddress, port);
+        return wrapSSLServer(null, attachment, hostAddress, port);
     }
 
     public ChannelingSocket wrapSSL(SSLEngine sslEngine, Object attachment, int buffSize) throws Exception {
