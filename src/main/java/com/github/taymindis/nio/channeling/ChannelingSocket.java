@@ -2,6 +2,7 @@ package com.github.taymindis.nio.channeling;
 
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.function.Predicate;
 
@@ -16,6 +17,7 @@ public interface ChannelingSocket {
      * @return socketchannel
      */
     SocketChannel getSocketChannel();
+    ServerSocketChannel getServerSocketChannel();
     long getActionTime();
     int getLastProcessedBytes();
 
@@ -29,6 +31,7 @@ public interface ChannelingSocket {
      */
     ChannelingSocket withConnect(SocketAddress remote);
     ChannelingSocket withConnect(String host, int port);
+    ChannelingSocket withAccept();
     ChannelingSocket withRead();
     ChannelingSocket withRead(int length/*, boolean autoResize*/);
     ChannelingSocket withRead(ByteBuffer readBuffer);
@@ -81,6 +84,7 @@ public interface ChannelingSocket {
     void write(ByteBuffer messageBuffer, WhenChannelingSocket when, Then then, ErrorCallback errorCallback);
     void close(Then then, ErrorCallback errorCallback);
     void close(WhenChannelingSocket when, Then then, ErrorCallback errorCallback);
+
 
 
     /**

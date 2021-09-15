@@ -14,7 +14,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
-class ChannelSSLRunner implements ChannelingSocket {
+class ChannelSSLRunner extends AbstractChannelRunner {
 
     private final SocketChannel sc;
     private final SSLSocketChannel sslsc;
@@ -47,7 +47,11 @@ class ChannelSSLRunner implements ChannelingSocket {
      */
     ChannelSSLRunner(SSLEngine sslEngine, int sslWorker, Object context, int bufferSize,
                      Queue<ChannelingSocket> channelRunners) throws IOException {
-        SocketChannel socketChannel = SocketChannel.open();
+        this(sslEngine, sslWorker, context, bufferSize, channelRunners, SocketChannel.open());
+    }
+
+    ChannelSSLRunner(SSLEngine sslEngine, int sslWorker, Object context, int bufferSize,
+                     Queue<ChannelingSocket> channelRunners, SocketChannel socketChannel) throws IOException {
         socketChannel.configureBlocking(false);
 
         if (sslThreadPool == null) {

@@ -10,7 +10,7 @@ import java.util.Date;
 import java.util.Queue;
 import java.util.function.Predicate;
 
-class ChannelRunner implements ChannelingSocket {
+class ChannelRunner extends AbstractChannelRunner {
 
     private final SocketChannel sc;
     private Object context;

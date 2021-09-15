@@ -1,6 +1,7 @@
 package com.github.taymindis.nio.channeling;
 
 enum ChannelingTask {
+    DO_ACCEPT,
     DO_CONNECT,
     DO_PROXY_CONNECT,
     DO_READ,

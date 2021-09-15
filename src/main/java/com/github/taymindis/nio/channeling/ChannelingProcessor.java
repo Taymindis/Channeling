@@ -5,10 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.ClosedChannelException;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.SocketChannel;
+import java.nio.channels.*;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
@@ -41,7 +38,11 @@ class ChannelingProcessor implements Runnable {
                 while (queue.peek() != null) {
                     socket = queue.poll();
                     try {
-                        registerIOTask(socket);
+                        if(socket instanceof ChannelServerRunner) {
+                            registerServerIOTask(socket);
+                        } else {
+                            registerIOTask(socket);
+                        }
                     } catch (IOException e) {
                         log.error(e.getMessage(), e);
                         socket.close(channelingSocket -> {});
@@ -83,10 +84,17 @@ class ChannelingProcessor implements Runnable {
                 }
 
                 try {
-                    if (doIO(channelingSocket, selectionKey)) {
-//                    iter.remove();
+                    if(channelingSocket instanceof ChannelServerRunner) {
+                        if (doServerIO(channelingSocket, selectionKey)) {
+                        } else {
+                            log.debug("pending channel");
+                        }
                     } else {
-                        log.debug("pending channel");
+                        if (doIO(channelingSocket, selectionKey)) {
+//                    iter.remove();
+                        } else {
+                            log.debug("pending channel");
+                        }
                     }
                 } catch (Exception e) {
                     channelingSocket.close(csClosed -> {});
@@ -181,6 +189,10 @@ class ChannelingProcessor implements Runnable {
             $sc = socket.getSocketChannel();
         }
         switch (socket.getIoTask()) {
+            case DO_ACCEPT:
+                doRegister(SelectionKey.OP_ACCEPT, socket, $sc);
+//                $sc.keyFor(nioSelector).cancel();
+                break;
             case DO_CONNECT:
                 $sc.connect(socket.getRemoteAddress());
                 doRegister(SelectionKey.OP_CONNECT, socket, $sc);
@@ -223,7 +235,34 @@ class ChannelingProcessor implements Runnable {
         }
     }
 
+private void registerServerIOTask(ChannelingSocket socket) throws IOException {
+        ServerSocketChannel $ssc = null;
+        if (socket.isSSL()) {
+            // TODO
+//            $sc = ((ServerSocketChannel) socket.getServerSocketChannel()).getWrappedSocketChannel();
+        } else {
+            $ssc = socket.getServerSocketChannel();
+        }
+        switch (socket.getIoTask()) {
+            case DO_ACCEPT:
+                doRegister(SelectionKey.OP_ACCEPT, socket, $ssc);
+                break;
+            default:
+                throw new IOException("Ambiguous channeling action! ");
+        }
+    }
+
     private void doRegister(int interested, ChannelingSocket socket, SocketChannel $sc) throws ClosedChannelException {
+        SelectionKey key = $sc.keyFor(this.nioSelector);
+        if (key != null && key.isValid()) {
+            key.interestOps(interested);
+        } else {
+            $sc.register(
+                    nioSelector, interested, socket);
+        }
+
+    }
+    private void doRegister(int interested, ChannelingSocket socket, ServerSocketChannel $sc) throws ClosedChannelException {
         SelectionKey key = $sc.keyFor(this.nioSelector);
         if (key != null && key.isValid()) {
             key.interestOps(interested);
@@ -260,6 +299,11 @@ class ChannelingProcessor implements Runnable {
         }
 
         switch (ioTask) {
+            case DO_ACCEPT:
+                if (key.isValid() && key.isAcceptable()) {
+                    return doPredicateThenCallback(socket, 0, $sc, key);
+                }
+                return false;
             case DO_READ:
                 if (key.isValid() && key.isReadable()) {
                     return doRead(socket, $sc, key);
@@ -300,6 +344,21 @@ class ChannelingProcessor implements Runnable {
                 return doPredicateThenCallback(socket, 0, $sc, key);
             case DO_IDLE:
                 return true;
+            default:
+                throw new IOException("Ambiguous channeling action! ");
+        }
+    }
+    private boolean doServerIO(ChannelingSocket socket, SelectionKey key) throws IOException, TimeoutException {
+        ServerSocketChannel $ssc = socket.getServerSocketChannel();
+
+        ChannelingTask ioTask = socket.getIoTask();
+
+        switch (ioTask) {
+            case DO_ACCEPT:
+                if (key.isValid() && key.isAcceptable()) {
+                    return doPredicateThenCallback(socket, 0,null, key);
+                }
+                return false;
             default:
                 throw new IOException("Ambiguous channeling action! ");
         }

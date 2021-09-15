@@ -1,9 +1,6 @@
 package com.github.taymindis.nio.channeling;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.*;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -51,7 +48,7 @@ public class Channeling {
      * @param connectionTimeoutInMs time in milisecond to get timeoutException
      * @param readWriteTimeOutInMs  time in milisecond to get timeoutException
      * @return Channeling
-     * @throws IOException  Throws IO Exception
+     * @throws IOException Throws IO Exception
      */
     public static Channeling startNewChanneling(int workers, int peekPerNano, long connectionTimeoutInMs, long readWriteTimeOutInMs) throws IOException {
         return startNewChanneling(workers, peekPerNano,
@@ -68,7 +65,6 @@ public class Channeling {
     }
 
     /**
-     *
      * @param numOfWorker for sslengine delegating task worker
      */
     public void enableSSL(int numOfWorker) {
@@ -145,9 +141,37 @@ public class Channeling {
         return wrapSSL(engine, attachment, /*1024 not in use in ssl, ssl using session buffer*/ 1024);
     }
 
+    public ChannelingSocket wrapSSLServer(SSLContext sslContext,
+                                          Object attachment,
+                                          String hostAddress,
+                                          int port) throws Exception {
+        return wrapSSLServer(sslContext.createSSLEngine(), attachment, hostAddress, port);
+    }
+
+    public ChannelingSocket wrapSSLServer(SSLEngine engine,
+                                          Object attachment,
+                                          String hostAddress,
+                                          int port) throws Exception {
+        if(engine != null) {
+            engine.setUseClientMode(false);
+        }
+        if (this.numOfSSLWoker < 0) {
+            throw new Exception("enableSSL is required ...");
+        }
+
+        int tix = (int) (Thread.currentThread().getId() % this.nWorker);
+        return new ChannelServerRunner(engine, this.numOfSSLWoker,attachment, 1024, hostAddress, port, channelQueues[tix]);
+    }
+
+    public ChannelingSocket wrapServer(Object attachment,
+                                          String hostAddress,
+                                          int port) throws Exception {
+        return wrapSSLServer((SSLEngine)null, attachment, hostAddress, port);
+    }
+
     public ChannelingSocket wrapSSL(SSLEngine sslEngine, Object attachment, int buffSize) throws Exception {
 
-        if(this.numOfSSLWoker < 0) {
+        if (this.numOfSSLWoker < 0) {
             throw new Exception("enableSSL is required ...");
         }
 
@@ -191,9 +215,9 @@ public class Channeling {
     }
 
     public ChannelingSocket wrapProxySSL(ChannelingProxy proxy, String protocols,
-                                    String remoteHandshakeAddress,
-                                    int remoteHandshakePort,
-                                    Object attachment) throws Exception {
+                                         String remoteHandshakeAddress,
+                                         int remoteHandshakePort,
+                                         Object attachment) throws Exception {
         SSLContext sslContext = getDefaultSSLContext(protocols); //SSLContext.getInstance("TLSv1.2");
         return wrapProxySSL(proxy, sslContext,
                 remoteHandshakeAddress,
@@ -201,8 +225,8 @@ public class Channeling {
     }
 
     public ChannelingSocket wrapProxySSL(ChannelingProxy proxy, SSLContext sslContext,
-                                    String remoteHandshakeAddress,
-                                    int remoteHandshakePort, Object attachment) throws Exception {
+                                         String remoteHandshakeAddress,
+                                         int remoteHandshakePort, Object attachment) throws Exception {
 
         SSLEngine engine = sslContext.createSSLEngine(remoteHandshakeAddress, remoteHandshakePort);
         engine.setUseClientMode(true);
@@ -211,7 +235,7 @@ public class Channeling {
 
     public ChannelingSocket wrapProxySSL(ChannelingProxy proxy, SSLEngine sslEngine, Object attachment, int buffSize) throws Exception {
 
-        if(this.numOfSSLWoker < 0) {
+        if (this.numOfSSLWoker < 0) {
             throw new Exception("enableSSL is required ...");
         }
 
@@ -221,23 +245,6 @@ public class Channeling {
 //        tix = resideSSLEngine(sslEngine, tix);
         return new ChannelProxySSLRunner(proxy, sslEngine, this.numOfSSLWoker, attachment, buffSize, channelQueues[tix]);
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     private synchronized int resideSSLEngine(SSLEngine sslEngine, int tix) {
