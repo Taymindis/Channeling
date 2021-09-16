@@ -141,6 +141,26 @@ public class Channeling {
         return wrapSSL(engine, attachment, /*1024 not in use in ssl, ssl using session buffer*/ 1024);
     }
 
+    public ChannelingSocket wrapSSL(SSLEngine sslEngine, Object attachment, int buffSize) throws Exception {
+        return wrapSSL(sslEngine, attachment, buffSize, null);
+    }
+
+    public ChannelingSocket wrapSSL(SSLEngine sslEngine, Object attachment, int buffSize, SocketChannel socketChannel) throws Exception {
+
+        if (this.numOfSSLWoker < 0) {
+            throw new Exception("enableSSL is required ...");
+        }
+
+        int tix = (int) (Thread.currentThread().getId() % this.nWorker);
+        // Try resize SSL Engine same tix with the same engine to prevent concurrent issue
+        // TODO still apply resize SSL Engine? since it's one for one socket
+//        tix = resideSSLEngine(sslEngine, tix);
+        if(socketChannel == null) {
+            return new ChannelSSLRunner(sslEngine, this.numOfSSLWoker, attachment, buffSize, channelQueues[tix]);
+        }
+        return new ChannelSSLRunner(sslEngine, this.numOfSSLWoker, attachment, buffSize, channelQueues[tix], socketChannel);
+    }
+
     public ChannelingSocket wrapSSLServer(SSLContext sslContext,
                                           Object attachment,
                                           String hostAddress,
@@ -158,19 +178,6 @@ public class Channeling {
                                           String hostAddress,
                                           int port) throws Exception {
         return wrapSSLServer(null, attachment, hostAddress, port);
-    }
-
-    public ChannelingSocket wrapSSL(SSLEngine sslEngine, Object attachment, int buffSize) throws Exception {
-
-        if (this.numOfSSLWoker < 0) {
-            throw new Exception("enableSSL is required ...");
-        }
-
-        int tix = (int) (Thread.currentThread().getId() % this.nWorker);
-        // Try resize SSL Engine same tix with the same engine to prevent concurrent issue
-        // TODO still apply resize SSL Engine? since it's one for one socket
-//        tix = resideSSLEngine(sslEngine, tix);
-        return new ChannelSSLRunner(sslEngine, this.numOfSSLWoker, attachment, buffSize, channelQueues[tix]);
     }
 
 

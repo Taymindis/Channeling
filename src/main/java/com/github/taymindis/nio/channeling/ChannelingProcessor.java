@@ -236,13 +236,13 @@ class ChannelingProcessor implements Runnable {
     }
 
     private void registerServerIOTask(ChannelingSocket socket) throws IOException {
-        ServerSocketChannel $ssc = null;
-        if (socket.isSSL()) {
+        ServerSocketChannel $ssc;
+//        if (socket.isSSL()) {
             // TODO
 //            $sc = ((ServerSocketChannel) socket.getServerSocketChannel()).getWrappedSocketChannel();
-        } else {
+//        } else {
             $ssc = socket.getServerSocketChannel();
-        }
+//        }
         switch (socket.getIoTask()) {
             case DO_ACCEPT:
                 doRegister(SelectionKey.OP_ACCEPT, socket, $ssc);
