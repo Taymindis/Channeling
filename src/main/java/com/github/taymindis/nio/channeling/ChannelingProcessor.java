@@ -52,7 +52,7 @@ class ChannelingProcessor implements Runnable {
                 }
                 runIOTask();
 
-                Thread.sleep(0, peekPerNano);
+//                Thread.sleep(0, peekPerNano);
 
             } catch (Exception e) {
                 log.error(e.getMessage(), e);
@@ -207,7 +207,9 @@ class ChannelingProcessor implements Runnable {
                         sslSocketChannel.getWrappedSocketChannel().keyFor(nioSelector).cancel();
                         sslSocketChannel.implCloseSelectableChannel();
                     } else {
-                        $sc.keyFor(nioSelector).cancel();
+                        SelectionKey targetKey = $sc.keyFor(nioSelector);
+                        targetKey.cancel();
+//                        targetKey.channel().close();
                         $sc.close();
                     }
                 }
@@ -335,10 +337,11 @@ class ChannelingProcessor implements Runnable {
             case DO_CLOSE:
                 if ($sc.isOpen()) {
                     key.cancel();
+//                    key.channel().close();
                     $sc.close();
                 }
                 idleTask(socket);
-                socket.getThen().callback(socket);
+//                socket.getThen().callback(socket);
                 return doPredicateThenCallback(socket, 0, $sc, key);
             case DO_CONNECT:
                 return doPredicateThenCallback(socket, 0, $sc, key);

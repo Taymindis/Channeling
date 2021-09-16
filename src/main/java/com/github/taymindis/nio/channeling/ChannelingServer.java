@@ -15,23 +15,26 @@ public class ChannelingServer implements AutoCloseable {
     private boolean isActive = false;
     private final ChannelingSocket channelServerRunner;
     private int buffSize = 1024;
+    private final Channeling channeling;
 
     public ChannelingServer(Channeling channeling, String host, int port) throws Exception {
         this(channeling, host, port, null);
     }
     public ChannelingServer(Channeling channeling, String host, int port, Object context) throws Exception {
+        this.channeling = channeling;
         this.channelServerRunner = channeling.wrapServer(context, host, port);
     }
     public ChannelingServer(Channeling channeling, SSLContext sslContext, String host, int port) throws Exception {
         this(channeling, sslContext, host, port, null);
     }
     public ChannelingServer(Channeling channeling, SSLContext sslContext, String host, int port, Object context) throws Exception {
+        this.channeling = channeling;
         this.channelServerRunner = channeling.wrapSSLServer(sslContext, context, host, port);
     }
 
     public void start() {
         isActive = true;
-//        AtomicBoolean waitForAccept = new AtomicBoolean(false);
+        AtomicBoolean waitForAccept = new AtomicBoolean(false);
         SSLContext sslContext = ((ChannelServerRunner) channelServerRunner).getSslContext();
         Object attachment = channelServerRunner.getContext();
 //        SSLEngine sslEngine = ((ChannelServerRunner) channelServerRunner).getSslEngine();
@@ -44,27 +47,36 @@ public class ChannelingServer implements AutoCloseable {
 
         while (isActive) {
 
-//            if(!waitForAccept.compareAndSet(false, true)) {
-//                continue;
-//            }
+            if(!waitForAccept.compareAndSet(false, true)) {
+
+//                try {
+//                    Thread.sleep(16);
+//                } catch (InterruptedException e) {
+//                    e.printStackTrace();
+//                }
+                continue;
+            }
 
 
             channelServerRunner.withAccept().then(channelingSocket -> {
                 SocketChannel socketChannel;
+
                 try {
                     socketChannel = (channelingSocket.getServerSocketChannel()).accept();
-//                    waitForAccept.set(false);
+
+                    while(!waitForAccept.compareAndSet(true, false)){
+
+                    }
+
                     socketChannel.configureBlocking(false);
 
 
 //                SSLEngine engine = sslContext.createSSLEngine();
 //                engine.setUseClientMode(false);
 //
-//                ChannelingSocket acceptedSock =
-//                        Channeling.startNewChanneling().wrap(engine, attachment, buffSize);
 
                 ChannelingSocket acceptedSock =
-                        Channeling.startNewChanneling().wrap(socketChannel, attachment, buffSize);
+                        channeling.wrap(socketChannel, attachment, buffSize);
 
 
 
@@ -83,16 +95,14 @@ public class ChannelingServer implements AutoCloseable {
                                 readBuffer.get(b);
 
 //                                System.out.println(new String(b, StandardCharsets.UTF_8));
-
                                 ByteBuffer writeBuffer = ByteBuffer.wrap("HTTP/1.1 200 OK\nDate: Mon, 27 Jul 2009 12:28:53 GMT\nServer: Apache/2.2.14 (Win32)\nLast-Modified: Wed, 22 Jul 2009 19:15:56 GMT\nContent-Length: 2\nContent-Type: text/plain\n\nOK".getBytes(StandardCharsets.UTF_8));
-                                socketResp.write(writeBuffer, this::closeSocketSilently);
+                                socketResp.write(writeBuffer, this::closeSocketSilently, ChannelingServer.this::closeErrorSocketSilently);
                             }
                         } catch (Exception e) {
                             log.error(e.getMessage(), e);
+                            closeSocketSilently(socketResp);
                         }
-                    }, (ChannelingSocket sc, Exception e) -> {
-                        closeSocketSilently(acceptedSock);
-                    });
+                    },ChannelingServer.this::closeErrorSocketSilently);
 
 
 
@@ -109,16 +119,30 @@ public class ChannelingServer implements AutoCloseable {
                 } catch (Exception e) {
                     log.error("Error while trying to accepting socket ... ", e);
                 }
+            }, (s, e) -> {
+                if(++i % 100 == 0) {
+                    System.out.println(i + " released");
+                }
             });
 
         }
 
     }
+    
     int i = 0;
+
+    private void closeErrorSocketSilently(ChannelingSocket channelingSocket, Exception e) {
+        channelingSocket.close(s -> {
+            if(++i % 100 == 0) {
+                System.out.println(i + " released");
+            }
+        });
+    }
+
     private void closeSocketSilently(ChannelingSocket socketResp) {
         socketResp.close(s -> {
             if(++i % 100 == 0) {
-                System.out.println(i + " closed");
+                System.out.println(i + " released");
             }
         });
     }

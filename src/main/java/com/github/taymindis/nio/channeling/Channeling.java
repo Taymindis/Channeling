@@ -146,7 +146,7 @@ public class Channeling {
                                           String hostAddress,
                                           int port) throws Exception {
 
-        if (this.numOfSSLWoker < 0) {
+        if (sslContext != null && this.numOfSSLWoker < 0) {
             throw new Exception("enableSSL is required ...");
         }
 
