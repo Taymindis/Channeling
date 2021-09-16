@@ -1,6 +1,7 @@
 package com.github.taymindis.nio.channeling;
 
 import com.github.taymindis.nio.channeling.http.HttpRequest;
+import com.github.taymindis.nio.channeling.http.HttpRequestMessage;
 import com.github.taymindis.nio.channeling.http.HttpResponse;
 import com.github.taymindis.nio.channeling.http.RequestListener;
 import org.slf4j.Logger;
@@ -186,11 +187,10 @@ public class ChannelingServer implements AutoCloseable {
 
                 // TODO Handle Request
 
-                HttpRequest request = massageBytesToHttp(b);
+                HttpRequestMessage request = massageBytesToHttp(b);
                 HttpResponse response = this.requestListener.handleRequest(request);
 
 
-                System.out.println(new String(b, StandardCharsets.UTF_8));
                 ByteBuffer writeBuffer = ByteBuffer.wrap("HTTP/1.1 200 OK\nDate: Mon, 27 Jul 2009 12:28:53 GMT\nServer: Apache/2.2.14 (Win32)\nLast-Modified: Wed, 22 Jul 2009 19:15:56 GMT\nContent-Length: 2\nContent-Type: text/plain\n\nOK".getBytes(StandardCharsets.UTF_8));
                 socketRead.write(writeBuffer, this::closeSocketSilently, ChannelingServer.this::closeErrorSocketSilently);
             } else if (numRead == 0) {
@@ -204,8 +204,8 @@ public class ChannelingServer implements AutoCloseable {
         }
     }
 
-    private HttpRequest massageBytesToHttp(byte[] b) {
-        return null;
+    private HttpRequestMessage massageBytesToHttp(byte[] b) {
+        return new HttpRequestMessage(b);
     }
 
 
