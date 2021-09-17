@@ -1,5 +1,7 @@
 package com.github.taymindis.nio.channeling;
 
+import com.github.taymindis.nio.channeling.http.HttpRequestMessage;
+import com.github.taymindis.nio.channeling.http.HttpResponse;
 import org.junit.jupiter.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,7 +43,6 @@ public class TestServer {
         channelingServer.setBuffSize(1024);
 
         new Thread(()->channelingServer.listen((request) -> {
-            System.out.println(new String(request.getRawBytes(), StandardCharsets.UTF_8));
             return null;
         })).start();
 
@@ -59,16 +60,22 @@ public class TestServer {
 
         channelingServer.setBuffSize(1024);
 
-        new Thread(()->channelingServer.listen(Map.of("localhost", request -> {
-
-
-            return null;
-        }))).start();
+        new Thread(()->channelingServer.listen(Map.of(
+                "localhost", this::localHostHandler,
+                "tadika.org.com", this::otherHandler
+        ))).start();
 
         Thread.sleep(1000 * 1000);
         channelingServer.stop();
     }
 
+    private HttpResponse localHostHandler(HttpRequestMessage httpRequestMessage) {
+        return null;
+    }
+
+    private HttpResponse otherHandler(HttpRequestMessage httpRequestMessage) {
+        return null;
+    }
 
 
     @AfterAll

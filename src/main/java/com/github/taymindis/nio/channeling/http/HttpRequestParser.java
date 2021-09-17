@@ -3,7 +3,7 @@ package com.github.taymindis.nio.channeling.http;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
-public class HttpMessageParser {
+public class HttpRequestParser {
     private String headerContent;
     private int bodyOffset = -1;
 
@@ -12,7 +12,7 @@ public class HttpMessageParser {
     private byte[] rawBytes;
     private String body;
 
-    public HttpMessageParser() {
+    public HttpRequestParser() {
         doneParsed = false;
         rawBytes = null;
         body = null;

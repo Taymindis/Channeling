@@ -63,6 +63,13 @@ public class ChannelingServer implements AutoCloseable {
             throw new IllegalStateException("Service has already running ... ");
         }
         isActive = true;
+
+        // Retrieve first as Default Listener
+        for(Map.Entry<String, RequestListener> entry: vHostRequestListener.entrySet()) {
+           this.defaultRequestListener = entry.getValue();
+           break;
+        }
+
         this.vHostRequestListener = vHostRequestListener;
         sslContext = ((ChannelServerRunner) channelServerRunner).getSslContext();
         attachment = channelServerRunner.getContext();
@@ -197,7 +204,7 @@ public class ChannelingServer implements AutoCloseable {
                 byte[] b = new byte[readBuffer.limit() - readBuffer.position()];
                 readBuffer.get(b);
 
-                HttpMessageParser messageParser = parsingMessage(socketRead, b);
+                HttpRequestParser messageParser = parsingMessage(socketRead, b);
 
                 if (!messageParser.isDoneParsed()) {
                     socketRead.setContext(messageParser);
@@ -229,7 +236,7 @@ public class ChannelingServer implements AutoCloseable {
         }
     }
 
-    private HttpRequestMessage convertMessageToHttpRequestMessage(ChannelingSocket socketRead, HttpMessageParser messageParser) throws Exception {
+    private HttpRequestMessage convertMessageToHttpRequestMessage(ChannelingSocket socketRead, HttpRequestParser messageParser) throws Exception {
         HttpRequestMessage request = new HttpRequestMessage();
         request.setRemoteAddress(socketRead.getRemoteAddress());
 
@@ -240,10 +247,10 @@ public class ChannelingServer implements AutoCloseable {
         return request;
     }
 
-    private HttpMessageParser parsingMessage(ChannelingSocket socketRead, byte[] b) throws IOException {
-        HttpMessageParser message = (HttpMessageParser) socketRead.getContext();
+    private HttpRequestParser parsingMessage(ChannelingSocket socketRead, byte[] b) throws IOException {
+        HttpRequestParser message = (HttpRequestParser) socketRead.getContext();
         if (message == null) {
-            message = new HttpMessageParser();
+            message = new HttpRequestParser();
 //            message.setRemoteAddress(socketRead.getSocketChannel().getRemoteAddress());
         }
         int requiredLength;

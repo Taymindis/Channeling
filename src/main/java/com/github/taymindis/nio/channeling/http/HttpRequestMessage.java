@@ -4,24 +4,16 @@ import java.net.SocketAddress;
 import java.util.Map;
 
 public class HttpRequestMessage {
-    private final byte[] rawBytes;
     private SocketAddress remoteAddress;
     private Map<String, String> headerMap = null;
     private String body;
     private String method;
     private String path;
 
-    public HttpRequestMessage(byte[] rawBytes) {
-        this.rawBytes = rawBytes;
-    }
 
     public HttpRequestMessage() {
-        this.rawBytes = null;
     }
 
-    public byte[] getRawBytes() {
-        return rawBytes;
-    }
 
     public void setRemoteAddress(SocketAddress remoteAddress) {
         this.remoteAddress = remoteAddress;
