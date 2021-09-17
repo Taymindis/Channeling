@@ -9,7 +9,7 @@ public class HttpMessageHelper {
     public static String parseToString(byte[] consumedBytes) {
         return new String(consumedBytes, StandardCharsets.UTF_8);
     }
-    public static void rawMessageToHeaderMap(HttpRequestMessage request, String headerContent) throws Exception {
+    public static void massageRequestHeader(HttpRequestMessage request, String headerContent) throws Exception {
 
         String[] headers = headerContent.split("\\r?\\n");
 
@@ -21,6 +21,7 @@ public class HttpMessageHelper {
 
         request.setMethod(statusText[0]);
         request.setPath(statusText[1]);
+        request.setHttpVersion(statusText[2]);
 
         Map<String,String> headerMap = new HashMap<>();
 
@@ -33,6 +34,28 @@ public class HttpMessageHelper {
         }
 
         request.setHeaderMap(headerMap);
+    }
+    public static String massageResponseToString(HttpResponseMessage responseMessage) throws Exception {
+
+        StringBuilder responseBuilder = new StringBuilder(responseMessage.getHttpVersion()).append(" ");
+
+        responseBuilder
+                .append(responseMessage.getCode())
+                .append(" ")
+                .append(responseMessage.getStatusText())
+        .append("\n");
+
+        responseMessage.getHeaderMap().forEach((key, value) ->
+                responseBuilder.append(key).append(": ").append(value).append("\n"));
+
+        responseBuilder.append("\n");
+
+        if(responseMessage.getContent()!= null) {
+            responseBuilder.append(responseMessage.getContent());
+        }
+
+
+        return responseBuilder.toString();
     }
 
 

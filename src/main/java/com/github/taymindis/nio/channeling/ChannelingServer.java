@@ -14,8 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static com.github.taymindis.nio.channeling.http.HttpMessageHelper.rawMessageToHeaderMap;
-import static com.github.taymindis.nio.channeling.http.HttpMessageHelper.parseToString;
+import static com.github.taymindis.nio.channeling.http.HttpMessageHelper.*;
 
 public class ChannelingServer implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(ChannelingProcessor.class);
@@ -212,7 +211,7 @@ public class ChannelingServer implements AutoCloseable {
                 } else {
                     // TODO Handle Request
                     HttpRequestMessage request = convertMessageToHttpRequestMessage(socketRead, messageParser);
-                    HttpResponse response;
+                    HttpResponseMessage response;
                     String vHost = request.getHeaderMap().get("Host");
                     if(vHost != null) {
                         response = this.vHostRequestListener.getOrDefault(vHost, defaultRequestListener).handleRequest(request);
@@ -220,7 +219,9 @@ public class ChannelingServer implements AutoCloseable {
                         response = defaultRequestListener.handleRequest(request);
                     }
 
-                    ByteBuffer writeBuffer = ByteBuffer.wrap("HTTP/1.1 200 OK\nDate: Mon, 27 Jul 2009 12:28:53 GMT\nServer: Apache/2.2.14 (Win32)\nLast-Modified: Wed, 22 Jul 2009 19:15:56 GMT\nContent-Length: 2\nContent-Type: text/plain\n\nOK".getBytes(StandardCharsets.UTF_8));
+                    String responseMsg = massageResponseToString(response);
+
+                    ByteBuffer writeBuffer = ByteBuffer.wrap(responseMsg.getBytes(StandardCharsets.UTF_8));
                     socketRead.write(writeBuffer, this::closeSocketSilently, ChannelingServer.this::closeErrorSocketSilently);
 
                 }
@@ -240,7 +241,7 @@ public class ChannelingServer implements AutoCloseable {
         HttpRequestMessage request = new HttpRequestMessage();
         request.setRemoteAddress(socketRead.getRemoteAddress());
 
-        rawMessageToHeaderMap(request, messageParser.getHeaderContent());
+        massageRequestHeader(request, messageParser.getHeaderContent());
 
         request.setBody(messageParser.getBody());
 

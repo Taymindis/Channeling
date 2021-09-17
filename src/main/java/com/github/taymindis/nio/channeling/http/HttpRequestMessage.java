@@ -9,6 +9,7 @@ public class HttpRequestMessage {
     private String body;
     private String method;
     private String path;
+    private String httpVersion;
 
 
     public HttpRequestMessage() {
@@ -56,5 +57,14 @@ public class HttpRequestMessage {
 
     public String getPath() {
         return path;
+    }
+
+
+    public String getHttpVersion() {
+        return httpVersion;
+    }
+
+    public void setHttpVersion(String httpVersion) {
+        this.httpVersion = httpVersion;
     }
 }

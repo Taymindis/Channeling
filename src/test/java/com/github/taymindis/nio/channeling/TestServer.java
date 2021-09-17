@@ -2,6 +2,7 @@ package com.github.taymindis.nio.channeling;
 
 import com.github.taymindis.nio.channeling.http.HttpRequestMessage;
 import com.github.taymindis.nio.channeling.http.HttpResponse;
+import com.github.taymindis.nio.channeling.http.HttpResponseMessage;
 import org.junit.jupiter.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,7 +14,10 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.security.SecureRandom;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.github.taymindis.nio.channeling.Channeling.getDefaultKeyStore;
@@ -23,6 +27,7 @@ public class TestServer {
 
     private static Channeling channeling;
     private static Logger logger = LoggerFactory.getLogger(TestServer.class);
+    private static SimpleDateFormat dateFormat;
 
     AtomicInteger totalDone;
 
@@ -42,6 +47,10 @@ public class TestServer {
 
         channelingServer.setBuffSize(1024);
 
+
+        TimeZone.setDefault(TimeZone.getTimeZone("Asia/Singapore"));
+        dateFormat = new SimpleDateFormat("yyyyMMdd hh:mm:ss");
+
         new Thread(()->channelingServer.listen((request) -> {
             return null;
         })).start();
@@ -59,7 +68,8 @@ public class TestServer {
         ChannelingServer channelingServer = new ChannelingServer(channeling, sslContext, "localhost", 8443);
 
         channelingServer.setBuffSize(1024);
-
+        TimeZone.setDefault(TimeZone.getTimeZone("Asia/Singapore"));
+        dateFormat = new SimpleDateFormat("yyyyMMdd hh:mm:ss");
         new Thread(()->channelingServer.listen(Map.of(
                 "localhost", this::localHostHandler,
                 "tadika.org.com", this::otherHandler
@@ -69,12 +79,39 @@ public class TestServer {
         channelingServer.stop();
     }
 
-    private HttpResponse localHostHandler(HttpRequestMessage httpRequestMessage) {
-        return null;
+    private HttpResponseMessage localHostHandler(HttpRequestMessage httpRequestMessage) {
+
+        HttpResponseMessage<String> res = new HttpResponseMessage<String>();
+
+        res.setContent("OK");
+        String content = res.getContent();
+
+        res.setCode(200);
+        res.setStatusText("OK");
+        res.addHeader("Date", dateFormat.format(new Date()));
+        res.addHeader("Server", "Channeling/1.0.5");
+        res.addHeader("Content-Length",String.valueOf(content.length()));
+        res.addHeader("Content-Type:","text/plain");
+
+
+        return res;
     }
 
-    private HttpResponse otherHandler(HttpRequestMessage httpRequestMessage) {
-        return null;
+    private HttpResponseMessage otherHandler(HttpRequestMessage httpRequestMessage) {
+
+        HttpResponseMessage<String> res = new HttpResponseMessage<String>();
+
+        res.setContent("OK");
+        String content = res.getContent();
+
+        res.setCode(200);
+        res.setStatusText("OK");
+        res.addHeader("Date", dateFormat.format(new Date()));
+        res.addHeader("Server", "Channeling/1.0.5");
+        res.addHeader("Content-Length",String.valueOf(content.length()));
+        res.addHeader("Content-Type:","text/plain");
+
+        return res;
     }
 
 
