@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.security.SecureRandom;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.github.taymindis.nio.channeling.Channeling.getDefaultKeyStore;
@@ -58,11 +59,11 @@ public class TestServer {
 
         channelingServer.setBuffSize(1024);
 
-        new Thread(()->channelingServer.listen(request -> {
+        new Thread(()->channelingServer.listen(Map.of("localhost", request -> {
 
 
             return null;
-        })).start();
+        }))).start();
 
         Thread.sleep(1000 * 1000);
         channelingServer.stop();

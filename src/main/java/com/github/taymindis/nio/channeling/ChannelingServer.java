@@ -1,19 +1,21 @@
 package com.github.taymindis.nio.channeling;
 
-import com.github.taymindis.nio.channeling.http.HttpRequest;
-import com.github.taymindis.nio.channeling.http.HttpRequestMessage;
-import com.github.taymindis.nio.channeling.http.HttpResponse;
-import com.github.taymindis.nio.channeling.http.RequestListener;
+import com.github.taymindis.nio.channeling.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import static com.github.taymindis.nio.channeling.http.HttpMessageHelper.rawMessageToHeaderMap;
+import static com.github.taymindis.nio.channeling.http.HttpMessageHelper.parseToString;
 
 public class ChannelingServer implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(ChannelingProcessor.class);
@@ -26,7 +28,9 @@ public class ChannelingServer implements AutoCloseable {
     private final AtomicBoolean waitForAccept = new AtomicBoolean(false);
     private SSLContext sslContext;
     private Object attachment;
-    private RequestListener requestListener;
+    private Map<String, RequestListener> vHostRequestListener;
+    private RequestListener defaultRequestListener;
+    private boolean readBody = true;
 
 
     public ChannelingServer(Channeling channeling, String host, int port) throws Exception {
@@ -50,8 +54,16 @@ public class ChannelingServer implements AutoCloseable {
     }
 
     public void listen(RequestListener requestListener) {
+        defaultRequestListener = requestListener;
+        listen(Map.of("_", requestListener));
+    }
+
+    public void listen(Map<String, RequestListener> vHostRequestListener) {
+        if(isActive) {
+            throw new IllegalStateException("Service has already running ... ");
+        }
         isActive = true;
-        this.requestListener = requestListener;
+        this.vHostRequestListener = vHostRequestListener;
         sslContext = ((ChannelServerRunner) channelServerRunner).getSslContext();
         attachment = channelServerRunner.getContext();
 //        SSLEngine sslEngine = ((ChannelServerRunner) channelServerRunner).getSslEngine();
@@ -80,10 +92,10 @@ public class ChannelingServer implements AutoCloseable {
 
     }
 
-    private void socketProcessor(ChannelingSocket channelingSocket) {
+    private void socketProcessor(ChannelingSocket serverSocket) {
         SocketChannel socketChannel = null;
         try {
-            socketChannel = (channelingSocket.getServerSocketChannel()).accept();
+            socketChannel = (serverSocket.getServerSocketChannel()).accept();
             //noinspection StatementWithEmptyBody
             while (!waitForAccept.compareAndSet(true, false)) ;
             socketChannel.configureBlocking(false);
@@ -95,7 +107,7 @@ public class ChannelingServer implements AutoCloseable {
 
         } catch (Exception e) {
             log.error("Error while trying to accepting socket ... ", e);
-            if(socketChannel != null) {
+            if (socketChannel != null) {
                 try {
                     socketChannel.close();
                 } catch (IOException ioException) {
@@ -105,11 +117,11 @@ public class ChannelingServer implements AutoCloseable {
         }
     }
 
-    private void sslSocketProcessor(ChannelingSocket channelingSocket) {
+    private void sslSocketProcessor(ChannelingSocket serverSocket) {
         SocketChannel socketChannel = null;
 
         try {
-            socketChannel = (channelingSocket.getServerSocketChannel()).accept();
+            socketChannel = (serverSocket.getServerSocketChannel()).accept();
 
             //noinspection StatementWithEmptyBody
             while (!waitForAccept.compareAndSet(true, false)) ;
@@ -136,7 +148,7 @@ public class ChannelingServer implements AutoCloseable {
 //                }
         } catch (Exception e) {
             log.error("Error while trying to accepting socket ... ", e);
-            if(socketChannel != null) {
+            if (socketChannel != null) {
                 try {
                     socketChannel.close();
                 } catch (IOException ioException) {
@@ -185,14 +197,27 @@ public class ChannelingServer implements AutoCloseable {
                 byte[] b = new byte[readBuffer.limit() - readBuffer.position()];
                 readBuffer.get(b);
 
-                // TODO Handle Request
+                HttpMessageParser messageParser = parsingMessage(socketRead, b);
 
-                HttpRequestMessage request = massageBytesToHttp(b);
-                HttpResponse response = this.requestListener.handleRequest(request);
+                if (!messageParser.isDoneParsed()) {
+                    socketRead.setContext(messageParser);
+                    eagerRead(readBuffer, socketRead);
+                } else {
+                    // TODO Handle Request
+                    HttpRequestMessage request = convertMessageToHttpRequestMessage(socketRead, messageParser);
+                    HttpResponse response;
+                    String vHost = request.getHeaderMap().get("Host");
+                    if(vHost != null) {
+                        response = this.vHostRequestListener.getOrDefault(vHost, defaultRequestListener).handleRequest(request);
+                    } else {
+                        response = defaultRequestListener.handleRequest(request);
+                    }
 
+                    ByteBuffer writeBuffer = ByteBuffer.wrap("HTTP/1.1 200 OK\nDate: Mon, 27 Jul 2009 12:28:53 GMT\nServer: Apache/2.2.14 (Win32)\nLast-Modified: Wed, 22 Jul 2009 19:15:56 GMT\nContent-Length: 2\nContent-Type: text/plain\n\nOK".getBytes(StandardCharsets.UTF_8));
+                    socketRead.write(writeBuffer, this::closeSocketSilently, ChannelingServer.this::closeErrorSocketSilently);
 
-                ByteBuffer writeBuffer = ByteBuffer.wrap("HTTP/1.1 200 OK\nDate: Mon, 27 Jul 2009 12:28:53 GMT\nServer: Apache/2.2.14 (Win32)\nLast-Modified: Wed, 22 Jul 2009 19:15:56 GMT\nContent-Length: 2\nContent-Type: text/plain\n\nOK".getBytes(StandardCharsets.UTF_8));
-                socketRead.write(writeBuffer, this::closeSocketSilently, ChannelingServer.this::closeErrorSocketSilently);
+                }
+
             } else if (numRead == 0) {
                 eagerRead(readBuffer, socketRead);
             } else {
@@ -204,13 +229,91 @@ public class ChannelingServer implements AutoCloseable {
         }
     }
 
-    private HttpRequestMessage massageBytesToHttp(byte[] b) {
-        return new HttpRequestMessage(b);
+    private HttpRequestMessage convertMessageToHttpRequestMessage(ChannelingSocket socketRead, HttpMessageParser messageParser) throws Exception {
+        HttpRequestMessage request = new HttpRequestMessage();
+        request.setRemoteAddress(socketRead.getRemoteAddress());
+
+        rawMessageToHeaderMap(request, messageParser.getHeaderContent());
+
+        request.setBody(messageParser.getBody());
+
+        return request;
+    }
+
+    private HttpMessageParser parsingMessage(ChannelingSocket socketRead, byte[] b) throws IOException {
+        HttpMessageParser message = (HttpMessageParser) socketRead.getContext();
+        if (message == null) {
+            message = new HttpMessageParser();
+//            message.setRemoteAddress(socketRead.getSocketChannel().getRemoteAddress());
+        }
+        int requiredLength;
+        int bodyOffset = message.getBodyOffset();
+
+        if (isReadBody()) {
+            byte[] currBytes = message.getRawBytes();
+            if (currBytes == null) {
+                message.setRawBytes(b);
+            } else {
+                try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                    outputStream.write(currBytes);
+                    outputStream.write(b);
+
+                    message.setRawBytes(outputStream.toByteArray());
+                }
+            }
+        }
+
+
+        String consumeMessage = parseToString(b);
+
+        message.fillCurrLen(consumeMessage.length());
+
+        if (bodyOffset == -1) {
+            if ((bodyOffset = consumeMessage.indexOf("\r\n\r\n")) > 0) {
+                bodyOffset += 4;
+            } else if ((bodyOffset = consumeMessage.indexOf("\n\n")) > 0) {
+                bodyOffset += 2;
+            }
+            message.setBodyOffset(bodyOffset);
+            if (bodyOffset > 0) {
+                String headersContent = consumeMessage.substring(0, bodyOffset);
+
+                message.setHeaderContent(headersContent);
+                String lowCaseHeaders = headersContent.toLowerCase();
+                if (lowCaseHeaders.contains("content-length: ")) {
+                    String contentLength = lowCaseHeaders.substring(lowCaseHeaders.indexOf("content-length:") + "content-length:".length()).split("\r\n", 2)[0];
+                    requiredLength = Integer.parseInt(contentLength.trim());
+                } else {
+                    requiredLength = consumeMessage.length() - bodyOffset;
+                    message.setDoneParsed(true);
+                }
+
+                requiredLength += bodyOffset;
+
+                message.setExpectedLen(requiredLength);
+            }
+        }
+
+        if (message.getExpectedLen() > 0) {
+            message.setDoneParsed(message.getCurrLen() >= message.getExpectedLen());
+        }
+
+        return message;
+
+
     }
 
 
     private void closeSocketSilently(ChannelingSocket socketResp) {
         this.closeErrorSocketSilently(socketResp, null);
+    }
+
+    public boolean isReadBody() {
+        return readBody;
+    }
+
+    public void setReadBody(boolean readBody) {
+        this.readBody = readBody;
     }
 
     public int getBuffSize() {
