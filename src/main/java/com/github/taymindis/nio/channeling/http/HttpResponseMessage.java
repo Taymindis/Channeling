@@ -3,9 +3,9 @@ package com.github.taymindis.nio.channeling.http;
 import java.util.HashMap;
 import java.util.Map;
 
-public class HttpResponseMessage<T> {
+public class HttpResponseMessage {
     private Map<String, String> headerMap = null;
-    private T content=null;
+    private Object content=null;
     private Integer code = null;
     private String statusText = null;
     private final String httpVersion;
@@ -41,11 +41,11 @@ public class HttpResponseMessage<T> {
         this.headerMap.put(key, value);
     }
 
-    public T getContent() {
+    public Object getContent() {
         return content;
     }
 
-    public void setContent(T content) {
+    public void setContent(Object content) {
         this.content = content;
     }
 

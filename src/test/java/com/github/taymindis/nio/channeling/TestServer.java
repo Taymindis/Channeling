@@ -1,8 +1,8 @@
 package com.github.taymindis.nio.channeling;
 
 import com.github.taymindis.nio.channeling.http.HttpRequestMessage;
-import com.github.taymindis.nio.channeling.http.HttpResponse;
 import com.github.taymindis.nio.channeling.http.HttpResponseMessage;
+import com.github.taymindis.nio.channeling.http.ResponseCallback;
 import org.junit.jupiter.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,19 +11,12 @@ import javax.net.ssl.*;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static com.github.taymindis.nio.channeling.Channeling.getDefaultKeyStore;
 
 
 public class TestServer {
@@ -44,6 +37,7 @@ public class TestServer {
         channeling = Channeling.startNewChanneling(1, 100 * 1000, 1000 * 1000);
         channeling.enableSSL(1);
     }
+
     @Test
     public void testServer() throws Exception {
         ChannelingServer channelingServer = new ChannelingServer(channeling, "localhost", 8080);
@@ -54,7 +48,7 @@ public class TestServer {
         TimeZone.setDefault(TimeZone.getTimeZone("Asia/Singapore"));
         dateFormat = new SimpleDateFormat("yyyyMMdd hh:mm:ss");
 
-        new Thread(()->channelingServer.listen(this::localHostHandler)).start();
+        new Thread(() -> channelingServer.listen(this::localHostHandler)).start();
 
 //        int tick = 1000;
 //
@@ -83,59 +77,58 @@ public class TestServer {
         channelingServer.setBuffSize(1024);
         TimeZone.setDefault(TimeZone.getTimeZone("Asia/Singapore"));
         dateFormat = new SimpleDateFormat("yyyyMMdd hh:mm:ss");
-        new Thread(()->channelingServer.listen(Map.of(
+        new Thread(() -> channelingServer.listen(Map.of(
                 "localhost", this::localHostHandler,
                 "channeling.taymindis.com", this::otherHandler
         ))).start();
 
 //
-//        int tick = 1000;
-//
-//        while(tick--> 0) {
-//            Thread.sleep(999);
-//            System.out.printf("tick %d\n", tick);
-//        }
+        int tick = 1000;
 
-//        Thread.sleep(100000);
+        while(tick--> 0) {
+            Thread.sleep(999);
+            System.out.printf("tick %d\n", tick);
+        }
 
-        new TestKits(channeling).multiThreadTestSSL("channeling.taymindis.com", 8443, 20, 100);
+
+//        new TestKits(channeling).multiThreadTestSSL("channeling.taymindis.com", 8443, 20, 100);
 
         channelingServer.stop();
     }
 
-    private HttpResponseMessage localHostHandler(HttpRequestMessage httpRequestMessage) {
+    private void localHostHandler(HttpRequestMessage httpRequestMessage, ResponseCallback callback) {
 
-        HttpResponseMessage<String> res = new HttpResponseMessage<String>();
+        HttpResponseMessage res = new HttpResponseMessage();
 
         res.setContent("OK");
-        String content = res.getContent();
+        String content = (String) res.getContent();
 
         res.setCode(200);
         res.setStatusText("OK");
         res.addHeader("Date", dateFormat.format(new Date()));
         res.addHeader("Server", "Channeling/1.0.5");
-        res.addHeader("Content-Length",String.valueOf(content.length()));
-        res.addHeader("Content-Type","text/plain");
+        res.addHeader("Content-Length", String.valueOf(content.length()));
+        res.addHeader("Content-Type", "text/plain");
 
-
-        return res;
+        callback.write(res, null);
     }
 
-    private HttpResponseMessage otherHandler(HttpRequestMessage httpRequestMessage) {
+    private void otherHandler(HttpRequestMessage httpRequestMessage, ResponseCallback callback) {
 
-        HttpResponseMessage<String> res = new HttpResponseMessage<String>();
+        HttpResponseMessage res = new HttpResponseMessage();
 
         res.setContent("<html>ok</html>");
-        String content = res.getContent();
+        String content =(String) res.getContent();
 
         res.setCode(200);
         res.setStatusText("OK");
         res.addHeader("Date", dateFormat.format(new Date()));
         res.addHeader("Server", "Channeling/1.0.5");
-        res.addHeader("Content-Length",String.valueOf(content.length()));
-        res.addHeader("Content-Type","text/html");
+        res.addHeader("Content-Length", String.valueOf(content.length()));
+        res.addHeader("Content-Type", "text/html");
 
-        return res;
+        callback.write(res, null);
+
     }
 
 
@@ -145,7 +138,7 @@ public class TestServer {
     }
 
 
-    public static void main(String ...args) throws Exception {
+    public static void main(String... args) throws Exception {
         TestServer testServer = new TestServer();
 
         beforeAll();
@@ -155,14 +148,12 @@ public class TestServer {
     }
 
 
-
-
     /**
      * Creates the key managers required to initiate the {@link SSLContext}, using a JKS keystore as an input.
      *
-     * @param filepath - the path to the JKS keystore.
+     * @param filepath         - the path to the JKS keystore.
      * @param keystorePassword - the keystore's password.
-     * @param keyPassword - the key's passsword.
+     * @param keyPassword      - the key's passsword.
      * @return {@link KeyManager} array that will be used to initiate the {@link SSLContext}.
      * @throws Exception
      */
@@ -184,7 +175,7 @@ public class TestServer {
     /**
      * Creates the trust managers required to initiate the {@link SSLContext}, using a JKS keystore as an input.
      *
-     * @param filepath - the path to the JKS keystore.
+     * @param filepath         - the path to the JKS keystore.
      * @param keystorePassword - the keystore's password.
      * @return {@link TrustManager} array, that will be used to initiate the {@link SSLContext}.
      * @throws Exception
@@ -205,17 +196,18 @@ public class TestServer {
     }
 
 
-
     protected TrustManager[] getAnyTrustCert() throws Exception {
         // Create a trust manager that does not validate certificate chains
-        TrustManager[] trustAllCerts = new TrustManager[] {
+        TrustManager[] trustAllCerts = new TrustManager[]{
                 new X509TrustManager() {
                     public java.security.cert.X509Certificate[] getAcceptedIssuers() {
                         return new X509Certificate[0];
                     }
+
                     public void checkClientTrusted(
                             java.security.cert.X509Certificate[] certs, String authType) {
                     }
+
                     public void checkServerTrusted(
                             java.security.cert.X509Certificate[] certs, String authType) {
                     }
@@ -224,12 +216,6 @@ public class TestServer {
 
         return trustAllCerts;
     }
-
-
-
-
-
-
 
 
 }

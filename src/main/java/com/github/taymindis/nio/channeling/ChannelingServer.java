@@ -18,6 +18,7 @@ import static com.github.taymindis.nio.channeling.http.HttpMessageHelper.*;
 
 public class ChannelingServer implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(ChannelingProcessor.class);
+    private static final String DEFAULT_VHOST_NAME = "_";
 
     private boolean isActive = false;
     private final ChannelingSocket channelServerRunner;
@@ -54,19 +55,19 @@ public class ChannelingServer implements AutoCloseable {
 
     public void listen(RequestListener requestListener) {
         defaultRequestListener = requestListener;
-        listen(Map.of("_", requestListener));
+        listen(Map.of(DEFAULT_VHOST_NAME, requestListener));
     }
 
     public void listen(Map<String, RequestListener> vHostRequestListener) {
-        if(isActive) {
+        if (isActive) {
             throw new IllegalStateException("Service has already running ... ");
         }
         isActive = true;
 
         // Retrieve first as Default Listener
-        for(Map.Entry<String, RequestListener> entry: vHostRequestListener.entrySet()) {
-           this.defaultRequestListener = entry.getValue();
-           break;
+        for (Map.Entry<String, RequestListener> entry : vHostRequestListener.entrySet()) {
+            this.defaultRequestListener = entry.getValue();
+            break;
         }
 
         this.vHostRequestListener = vHostRequestListener;
@@ -209,21 +210,25 @@ public class ChannelingServer implements AutoCloseable {
                     socketRead.setContext(messageParser);
                     eagerRead(readBuffer, socketRead);
                 } else {
-                    // TODO Handle Request
                     HttpRequestMessage request = convertMessageToHttpRequestMessage(socketRead, messageParser);
-                    HttpResponseMessage response;
                     String vHost = request.getHeaderMap().get("Host");
-                    if(vHost != null) {
-                        response = this.vHostRequestListener.getOrDefault(vHost, defaultRequestListener).handleRequest(request);
-                    } else {
-                        response = defaultRequestListener.handleRequest(request);
+                    if (vHost == null) {
+                        vHost = DEFAULT_VHOST_NAME;
                     }
-
-                    String responseMsg = massageResponseToString(response);
-
-                    ByteBuffer writeBuffer = ByteBuffer.wrap(responseMsg.getBytes(StandardCharsets.UTF_8));
-                    socketRead.write(writeBuffer, this::closeSocketSilently, ChannelingServer.this::closeErrorSocketSilently);
-
+                    this.vHostRequestListener
+                            .getOrDefault(vHost, defaultRequestListener)
+                            .handleRequest(request, (httpResponseMessage, charset) -> {
+                                if(charset == null) {
+                                    charset = StandardCharsets.UTF_8;
+                                }
+                                try {
+                                    String responseMsg = massageResponseToString(httpResponseMessage);
+                                    ByteBuffer writeBuffer = ByteBuffer.wrap(responseMsg.getBytes(charset));
+                                    socketRead.write(writeBuffer, this::closeSocketSilently, ChannelingServer.this::closeErrorSocketSilently);
+                                } catch (Exception e) {
+                                    this.closeErrorSocketSilently(socketRead, e);
+                                }
+                            });
                 }
 
             } else if (numRead == 0) {

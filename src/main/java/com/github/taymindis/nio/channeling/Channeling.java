@@ -71,6 +71,10 @@ public class Channeling {
         this.numOfSSLWoker = numOfWorker;
     }
 
+    public boolean hasSSL() {
+        return this.numOfSSLWoker > 0;
+    }
+
     private Channeling(int workers, int peekPerNano, long connectionTimeoutInMs, long readWriteTimeOutInMs, List<ChannelingPlugin> channelingPlugins) throws IOException {
         this.connectionTimeoutInMs = connectionTimeoutInMs;
         this.readWriteTimeOutInMs = readWriteTimeOutInMs;
