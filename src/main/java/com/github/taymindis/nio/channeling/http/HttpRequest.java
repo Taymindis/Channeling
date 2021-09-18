@@ -186,7 +186,7 @@ public class HttpRequest implements SingleRequest {
                 if (lowCaseHeaders.contains("transfer-encoding:")) {
                     responseType = HttpResponseType.TRANSFER_CHUNKED;
                 } else if (lowCaseHeaders.contains("content-length: ")) {
-                    String contentLength = lowCaseHeaders.substring(lowCaseHeaders.indexOf("content-length:") + "content-length:".length()).split("\r\n", 2)[0];
+                    String contentLength = lowCaseHeaders.substring(lowCaseHeaders.indexOf("content-length:") + "content-length:".length()).split("\\r?\\n", 2)[0];
                     requiredLength = Integer.parseInt(contentLength.trim());
                     responseType = HttpResponseType.CONTENT_LENGTH;
                 } else {

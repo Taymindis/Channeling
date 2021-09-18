@@ -232,8 +232,7 @@ public class ChannelingServer implements AutoCloseable {
                 closeSocketSilently(socketRead);
             }
         } catch (Exception e) {
-            log.error(e.getMessage(), e);
-            closeSocketSilently(socketRead);
+            closeErrorSocketSilently(socketRead, e);
         }
     }
 
@@ -289,7 +288,7 @@ public class ChannelingServer implements AutoCloseable {
                 message.setHeaderContent(headersContent);
                 String lowCaseHeaders = headersContent.toLowerCase();
                 if (lowCaseHeaders.contains("content-length: ")) {
-                    String contentLength = lowCaseHeaders.substring(lowCaseHeaders.indexOf("content-length:") + "content-length:".length()).split("\r\n", 2)[0];
+                    String contentLength = lowCaseHeaders.substring(lowCaseHeaders.indexOf("content-length:") + "content-length:".length()).split("\\r?\\n", 2)[0];
                     requiredLength = Integer.parseInt(contentLength.trim());
                 } else {
                     requiredLength = consumeMessage.length() - bodyOffset;
@@ -311,6 +310,9 @@ public class ChannelingServer implements AutoCloseable {
 
     }
 
+    public Channeling getChanneling() {
+        return channeling;
+    }
 
     private void closeSocketSilently(ChannelingSocket socketResp) {
         this.closeErrorSocketSilently(socketResp, null);

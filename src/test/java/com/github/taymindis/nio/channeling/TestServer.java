@@ -14,10 +14,13 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Map;
-import java.util.TimeZone;
+import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.github.taymindis.nio.channeling.Channeling.getDefaultKeyStore;
@@ -51,11 +54,18 @@ public class TestServer {
         TimeZone.setDefault(TimeZone.getTimeZone("Asia/Singapore"));
         dateFormat = new SimpleDateFormat("yyyyMMdd hh:mm:ss");
 
-        new Thread(()->channelingServer.listen((request) -> {
-            return null;
-        })).start();
+        new Thread(()->channelingServer.listen(this::localHostHandler)).start();
 
-        Thread.sleep(1000 * 1000);
+//        int tick = 1000;
+//
+//        while(tick--> 0) {
+//            Thread.sleep(999);
+//            System.out.printf("tick %d\n", tick);
+//        }
+        Thread.sleep(1000);
+
+        new TestKits(channeling).multiThreadTestLocalhost("localhost", 8080, 4, 1000);
+
         channelingServer.stop();
     }
 
@@ -63,19 +73,33 @@ public class TestServer {
     @Test
     public void testSSLServer() throws Exception {
         SSLContext sslContext = SSLContext.getInstance("TLSv1.2");
-        sslContext.init(createKeyManagers("./src/main/resources/keystore.jks", "password", "password"),  createTrustManagers(getDefaultKeyStore(), "changeit"), new SecureRandom());
+        sslContext.init(createKeyManagers("./src/main/resources/keystore.jks", "password", "password"),
+//                createTrustManagers(getDefaultKeyStore(), "changeit"),
+                getAnyTrustCert(),
+                new SecureRandom());
 
-        ChannelingServer channelingServer = new ChannelingServer(channeling, sslContext, "localhost", 8443);
+        ChannelingServer channelingServer = new ChannelingServer(channeling, sslContext, "0.0.0.0", 8443);
 
         channelingServer.setBuffSize(1024);
         TimeZone.setDefault(TimeZone.getTimeZone("Asia/Singapore"));
         dateFormat = new SimpleDateFormat("yyyyMMdd hh:mm:ss");
         new Thread(()->channelingServer.listen(Map.of(
                 "localhost", this::localHostHandler,
-                "tadika.org.com", this::otherHandler
+                "channeling.taymindis.com", this::otherHandler
         ))).start();
 
-        Thread.sleep(1000 * 1000);
+//
+//        int tick = 1000;
+//
+//        while(tick--> 0) {
+//            Thread.sleep(999);
+//            System.out.printf("tick %d\n", tick);
+//        }
+
+//        Thread.sleep(100000);
+
+        new TestKits(channeling).multiThreadTestSSL("channeling.taymindis.com", 8443, 20, 100);
+
         channelingServer.stop();
     }
 
@@ -91,7 +115,7 @@ public class TestServer {
         res.addHeader("Date", dateFormat.format(new Date()));
         res.addHeader("Server", "Channeling/1.0.5");
         res.addHeader("Content-Length",String.valueOf(content.length()));
-        res.addHeader("Content-Type:","text/plain");
+        res.addHeader("Content-Type","text/plain");
 
 
         return res;
@@ -101,7 +125,7 @@ public class TestServer {
 
         HttpResponseMessage<String> res = new HttpResponseMessage<String>();
 
-        res.setContent("OK");
+        res.setContent("<html>ok</html>");
         String content = res.getContent();
 
         res.setCode(200);
@@ -109,7 +133,7 @@ public class TestServer {
         res.addHeader("Date", dateFormat.format(new Date()));
         res.addHeader("Server", "Channeling/1.0.5");
         res.addHeader("Content-Length",String.valueOf(content.length()));
-        res.addHeader("Content-Type:","text/plain");
+        res.addHeader("Content-Type","text/html");
 
         return res;
     }
@@ -179,6 +203,33 @@ public class TestServer {
         trustFactory.init(trustStore);
         return trustFactory.getTrustManagers();
     }
+
+
+
+    protected TrustManager[] getAnyTrustCert() throws Exception {
+        // Create a trust manager that does not validate certificate chains
+        TrustManager[] trustAllCerts = new TrustManager[] {
+                new X509TrustManager() {
+                    public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                        return new X509Certificate[0];
+                    }
+                    public void checkClientTrusted(
+                            java.security.cert.X509Certificate[] certs, String authType) {
+                    }
+                    public void checkServerTrusted(
+                            java.security.cert.X509Certificate[] certs, String authType) {
+                    }
+                }
+        };
+
+        return trustAllCerts;
+    }
+
+
+
+
+
+
 
 
 }
