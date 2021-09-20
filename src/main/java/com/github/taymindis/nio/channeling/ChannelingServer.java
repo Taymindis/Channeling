@@ -31,6 +31,19 @@ public class ChannelingServer implements AutoCloseable {
     private Map<String, RequestListener> vHostRequestListener;
     private RequestListener defaultRequestListener;
     private boolean readBody = true;
+    private ErrorCallback onReadError, onWriteError, onAcceptError;
+    private static final ErrorCallback ON_READ_ERROR = (sc, e) -> {
+        e.printStackTrace();
+        sc.close(s->{});
+    };
+    private ErrorCallback ON_WRITE_ERROR = (sc, e) -> {
+        e.printStackTrace();
+        sc.close(s->{});
+    };
+    private ErrorCallback ON_ACCEPT_ERROR = (sc, e) -> {
+        e.printStackTrace();
+        sc.close(s->{});
+    };
 
 
     public ChannelingServer(Channeling channeling, String host, int port) throws Exception {
@@ -41,6 +54,9 @@ public class ChannelingServer implements AutoCloseable {
         this.channeling = channeling;
         this.isSSLServer = false;
         this.channelServerRunner = channeling.wrapServer(context, host, port);
+        this.onAcceptError = ON_ACCEPT_ERROR;
+        this.onReadError = ON_READ_ERROR;
+        this.onWriteError = ON_WRITE_ERROR;
     }
 
     public ChannelingServer(Channeling channeling, SSLContext sslContext, String host, int port) throws Exception {
@@ -51,6 +67,9 @@ public class ChannelingServer implements AutoCloseable {
         this.channeling = channeling;
         this.isSSLServer = sslContext != null;
         this.channelServerRunner = channeling.wrapSSLServer(sslContext, context, host, port);
+        this.onAcceptError = ON_ACCEPT_ERROR;
+        this.onReadError = ON_READ_ERROR;
+        this.onWriteError = ON_WRITE_ERROR;
     }
 
     public void listen(RequestListener requestListener) {
@@ -86,14 +105,14 @@ public class ChannelingServer implements AutoCloseable {
                 if (!waitForAccept.compareAndSet(false, true)) {
                     continue;
                 }
-                channelServerRunner.withAccept().then(this::sslSocketProcessor, this::closeErrorSocketSilently);
+                channelServerRunner.withAccept().then(this::sslSocketProcessor, onAcceptError);
             }
         } else {
             while (isActive) {
                 if (!waitForAccept.compareAndSet(false, true)) {
                     continue;
                 }
-                channelServerRunner.withAccept().then(this::socketProcessor, this::closeErrorSocketSilently);
+                channelServerRunner.withAccept().then(this::socketProcessor, onAcceptError);
             }
         }
 
@@ -110,7 +129,8 @@ public class ChannelingServer implements AutoCloseable {
             ChannelingSocket acceptedSock =
                     channeling.wrap(socketChannel, attachment, buffSize);
 
-            acceptedSock.withEagerRead(buffSize).then(this::readAndThen, ChannelingServer.this::closeErrorSocketSilently);
+            acceptedSock.withEagerRead(buffSize)
+                    .then(this::readAndThen, this.onReadError);
 
         } catch (Exception e) {
             log.error("Error while trying to accepting socket ... ", e);
@@ -144,7 +164,8 @@ public class ChannelingServer implements AutoCloseable {
                     channeling.wrapSSL(engine, attachment, buffSize, socketChannel);
 
 
-            acceptedSock.withEagerRead(acceptedSock.getSSLMinimumInputBufferSize()).then(this::readAndThen, ChannelingServer.this::closeErrorSocketSilently);
+            acceptedSock.withEagerRead(acceptedSock.getSSLMinimumInputBufferSize())
+                    .then(this::readAndThen, onReadError);
 //                engine.beginHandshake();
 //
 //                if (doHandshake(socketChannel, engine)) {
@@ -165,20 +186,7 @@ public class ChannelingServer implements AutoCloseable {
         }
 
     }
-
-    private void closeErrorSocketSilently(ChannelingSocket channelingSocket, Exception e) {
-        if (e != null) {
-            e.printStackTrace();
-            channelingSocket.getErrorCallBack().error(channelingSocket, e);
-        }
-//        if(channelingSocket instanceof ChannelSSLRunner) {
-//          SSLSocketChannel sslSocketChannel = (SSLSocketChannel) channelingSocket.getSocketChannel();
-//          sslSocketChannel.get
-//        }
-        channelingSocket.close(s->{});
-    }
-
-
+    
     private void eagerRead(ByteBuffer readBuffer, ChannelingSocket channelingSocket) {
         if (!readBuffer.hasRemaining()) {
             readBuffer.clear();
@@ -219,10 +227,10 @@ public class ChannelingServer implements AutoCloseable {
                                 try {
                                     String responseMsg = massageResponseToString(httpResponseMessage);
                                     ByteBuffer writeBuffer = ByteBuffer.wrap(responseMsg.getBytes(charset));
-                                    socketRead.write(writeBuffer, this::closeSocketSilently, socketRead.getErrorCallBack());
+                                    socketRead.write(writeBuffer, this::closeSocketSilently,
+                                            this.onWriteError);
                                 } catch (Exception e) {
-                                    socketRead.getErrorCallBack().error(socketRead, e);
-                                    this.closeErrorSocketSilently(socketRead, e);
+                                    this.onWriteError.error(socketRead, e);
                                 }
                             });
                 }
@@ -233,12 +241,12 @@ public class ChannelingServer implements AutoCloseable {
                 closeSocketSilently(socketRead);
             }
         } catch (Exception e) {
-            closeErrorSocketSilently(socketRead, e);
+            this.onReadError.error(socketRead, e);
         }
     }
 
     private HttpRequestMessage convertMessageToHttpRequestMessage(ChannelingSocket socketRead, HttpRequestParser messageParser) throws Exception {
-        HttpRequestMessage request = new HttpRequestMessage();
+        HttpRequestMessage request = new HttpRequestMessage(socketRead);
         request.setRemoteAddress(socketRead.getRemoteAddress());
 
         massageRequestHeader(request, messageParser.getHeaderContent());
@@ -316,7 +324,7 @@ public class ChannelingServer implements AutoCloseable {
     }
 
     private void closeSocketSilently(ChannelingSocket socketResp) {
-        this.closeErrorSocketSilently(socketResp, null);
+        socketResp.close(s->{});
     }
 
     public boolean isReadBody() {
@@ -342,5 +350,31 @@ public class ChannelingServer implements AutoCloseable {
     @Override
     public void close() throws Exception {
         this.stop();
+    }
+
+
+
+    public ErrorCallback getOnReadError() {
+        return onReadError;
+    }
+
+    public void setOnReadError(ErrorCallback onReadError) {
+        this.onReadError = onReadError;
+    }
+
+    public ErrorCallback getOnWriteError() {
+        return onWriteError;
+    }
+
+    public void setOnWriteError(ErrorCallback onWriteError) {
+        this.onWriteError = onWriteError;
+    }
+
+    public ErrorCallback getOnAcceptError() {
+        return onAcceptError;
+    }
+
+    public void setOnAcceptError(ErrorCallback onAcceptError) {
+        this.onAcceptError = onAcceptError;
     }
 }

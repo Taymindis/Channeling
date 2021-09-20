@@ -25,6 +25,9 @@ public class ChannelingTimeoutFeature implements ChannelingPlugin{
             bufferingCount = 0;
             for (SelectionKey key : allKeys) {
                 ChannelingSocket channelingSocket = (ChannelingSocket) key.attachment();
+                if(channelingSocket instanceof ChannelServerRunner) {
+                    continue;
+                }
                 if (channelingSocket != null) {
                     long actionTime = channelingSocket.getActionTime();
                     long elapsedTimeInMs = currTime - actionTime;

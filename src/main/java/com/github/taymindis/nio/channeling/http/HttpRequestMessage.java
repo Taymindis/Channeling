@@ -1,5 +1,7 @@
 package com.github.taymindis.nio.channeling.http;
 
+import com.github.taymindis.nio.channeling.ChannelingSocket;
+
 import java.net.SocketAddress;
 import java.util.Map;
 
@@ -10,11 +12,11 @@ public class HttpRequestMessage {
     private String method;
     private String path;
     private String httpVersion;
+    private ChannelingSocket _sc;
 
-
-    public HttpRequestMessage() {
+    public HttpRequestMessage(ChannelingSocket sc) {
+        this._sc = sc;
     }
-
 
     public void setRemoteAddress(SocketAddress remoteAddress) {
         this.remoteAddress = remoteAddress;
@@ -59,12 +61,20 @@ public class HttpRequestMessage {
         return path;
     }
 
-
     public String getHttpVersion() {
         return httpVersion;
     }
 
     public void setHttpVersion(String httpVersion) {
         this.httpVersion = httpVersion;
+    }
+
+    // For client later use
+    public Object getContext() {
+        return _sc.getContext();
+    }
+
+    public void setContext(Object context) {
+        this._sc.setContext(context);
     }
 }
