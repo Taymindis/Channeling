@@ -56,7 +56,7 @@ public class TestProxy {
                 1024
         );
 
-        httpRequest.get(httpResponse -> {
+        httpRequest.execute(httpResponse -> {
 //            System.out.println("\""+result+"\"");
             String result = httpResponse.getBodyContent();
             Assertions.assertTrue(result.contains("</html>"), result.substring(result.length() - 15));

@@ -57,7 +57,7 @@ public class TestLocalhost {
         );
 
 
-        httpRequest.get(httpResponse -> {
+        httpRequest.execute(httpResponse -> {
 //            System.out.println("\""+result+"\"");
             String result = httpResponse.getBodyContent();
             Assertions.assertTrue(result.toLowerCase().contains("</html>"), result.substring(result.length() - 15));

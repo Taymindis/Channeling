@@ -76,7 +76,7 @@ public class HttpRequest implements SingleRequest {
         this.prevRedirectionLoc = null;
     }
 
-    public void get(Consumer<HttpResponse> result, Consumer<Exception> error) {
+    public void execute(Consumer<HttpResponse> result, Consumer<Exception> error) {
         this.result = result;
         this.error = error;
         socket.withConnect(host, port).when((WhenConnectingStatus) connectingStatus -> connectingStatus).then(this::connectAndThen, this::error);
@@ -238,7 +238,7 @@ public class HttpRequest implements SingleRequest {
                     if(!location.equals(prevRedirectionLoc)) {
                         channelingSocket.close(cs -> {});
                         redirectingRequest(location);
-                        get(result, error);
+                        execute(result, error);
                         return;
                     }
                 }
@@ -305,7 +305,7 @@ public class HttpRequest implements SingleRequest {
                     if(!location.equals(prevRedirectionLoc)) {
                         channelingSocket.close(cs -> {});
                         redirectingRequest(location);
-                        get(result, error);
+                        execute(result, error);
                         return;
                     }
                 }

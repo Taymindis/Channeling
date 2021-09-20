@@ -16,5 +16,5 @@ public interface SingleRequest {
 
     void error(ChannelingSocket channelingSocket,Exception e);
 
-    void get(Consumer<HttpResponse> result, Consumer<Exception> error) throws IOException;
+    void execute(Consumer<HttpResponse> result, Consumer<Exception> error) throws IOException;
 }

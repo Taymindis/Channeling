@@ -1,8 +1,6 @@
 package com.github.taymindis.nio.channeling;
 
-import com.github.taymindis.nio.channeling.http.HttpRequestMessage;
-import com.github.taymindis.nio.channeling.http.HttpResponseMessage;
-import com.github.taymindis.nio.channeling.http.ResponseCallback;
+import com.github.taymindis.nio.channeling.http.*;
 import org.junit.jupiter.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +59,80 @@ public class TestServer {
         new TestKits(channeling).multiThreadTestLocalhost("localhost", 8080, 4, 1000);
 
         channelingServer.stop();
+    }
+
+    @Test
+    public void testProxyServer() throws Exception {
+        ChannelingServer channelingServer = new ChannelingServer(channeling, "localhost", 8080);
+
+        channelingServer.setBuffSize(1024);
+
+
+        TimeZone.setDefault(TimeZone.getTimeZone("Asia/Singapore"));
+        dateFormat = new SimpleDateFormat("yyyyMMdd hh:mm:ss");
+
+        new Thread(() -> channelingServer.listen(this::proxyHandler)).start();
+
+        int tick = 1000;
+
+        while(tick--> 0) {
+            Thread.sleep(999);
+            System.out.printf("tick %d\n", tick);
+        }
+
+        channelingServer.stop();
+    }
+
+    private void proxyHandler(HttpRequestMessage requestMessage, ResponseCallback callback) {
+        try {
+            String host = "localhost";
+            int port = 9090;
+
+
+            ChannelingSocket cs = channeling.wrap(null);
+
+            HttpRequestBuilder requestBuilder = new HttpRequestBuilder();
+
+            requestBuilder.setMethod("GET");
+            requestBuilder.addHeader("Host", String.format("%s:%d", host, port));
+            requestBuilder.setPath("/");
+
+
+
+            SingleRequest httpRequest = new HttpRequest(
+                    cs,
+                    host,
+                    port,
+                    requestBuilder.toString(),
+                    1024
+            );
+            HttpResponseMessage res = new HttpResponseMessage();
+
+            httpRequest.execute(httpResponse -> {
+                res.setCode(httpResponse.getCode());
+                res.setStatusText(httpResponse.getStatusText());
+                res.setContent(httpResponse.getBodyContent());
+                res.addHeader("Content-Type", httpResponse.getHeader("Content-Type"));
+
+                String content = (String) res.getContent();
+
+                res.addHeader("Date", dateFormat.format(new Date()));
+                res.addHeader("Server", "Channeling/1.0.5");
+                res.addHeader("Content-Length", String.valueOf(content.length()));
+                res.addHeader("Content-Type", "text/plain");
+
+                callback.write(res, null);
+            }, e -> {
+                Assertions.fail(e.getMessage(), e);
+            });
+
+
+
+
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
 

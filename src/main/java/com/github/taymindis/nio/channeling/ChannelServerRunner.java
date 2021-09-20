@@ -162,4 +162,18 @@ class ChannelServerRunner extends AbstractChannelRunner {
     SSLContext getSslContext() {
         return sslContext;
     }
+
+
+
+//    @Override
+//    public ChannelingSocket withClose() {
+////        then = DEFAULT_CALLBACK;
+////        if (errorCallback == null) {
+////            errorCallback = DEFAULT_ERRORCALLBACK;
+////        }
+////        this.setIoTask(ChannelingTask.DO_CLOSE);
+//
+//        return this;
+//    }
+
 }

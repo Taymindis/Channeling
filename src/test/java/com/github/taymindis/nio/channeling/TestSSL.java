@@ -58,7 +58,7 @@ public class TestSSL {
         );
 
 
-        httpRequest.get(httpResponse -> {
+        httpRequest.execute(httpResponse -> {
             String result = httpResponse.getBodyContent();
 //            System.out.println("\""+result+"\"");
             Assertions.assertTrue(result.toLowerCase().contains("</html>"), result.substring(result.length() - 15));

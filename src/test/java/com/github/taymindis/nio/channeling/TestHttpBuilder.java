@@ -8,14 +8,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
-import java.io.IOException;
 import java.net.URI;
-import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -72,7 +69,7 @@ public class TestHttpBuilder {
         );
 
 
-        httpRequest.get(httpResponse -> {
+        httpRequest.execute(httpResponse -> {
 //            System.out.println("\""+result+"\"");
             String result = httpResponse.getBodyContent();
             Assertions.assertTrue(result.toLowerCase().contains("</html>"), result.substring(result.length() - 15));
@@ -119,7 +116,7 @@ public class TestHttpBuilder {
         );
 
 
-        httpRequest.get(httpResponse -> {
+        httpRequest.execute(httpResponse -> {
 //            System.out.println("\""+result+"\"");
             String result = httpResponse.getBodyContent();
             Map<String,String> headers = httpResponse.getHeaderAsMap();
@@ -177,7 +174,7 @@ public class TestHttpBuilder {
                 }
         );
 
-        httpRequest.get(httpResponse -> {
+        httpRequest.execute(httpResponse -> {
 //            System.out.println("\""+result+"\"");
             String result = httpResponse.getBodyContent();
             Map<String, String> headers = httpResponse.getHeaderAsMap();
