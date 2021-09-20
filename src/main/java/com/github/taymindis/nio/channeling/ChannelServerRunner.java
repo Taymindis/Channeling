@@ -165,15 +165,25 @@ class ChannelServerRunner extends AbstractChannelRunner {
 
 
 
-//    @Override
-//    public ChannelingSocket withClose() {
-////        then = DEFAULT_CALLBACK;
-////        if (errorCallback == null) {
-////            errorCallback = DEFAULT_ERRORCALLBACK;
-////        }
-////        this.setIoTask(ChannelingTask.DO_CLOSE);
-//
-//        return this;
-//    }
+    @Override
+    public ChannelingSocket withClose() {
+//        then = DEFAULT_CALLBACK;
+//        if (errorCallback == null) {
+//            errorCallback = DEFAULT_ERRORCALLBACK;
+//        }
+//        this.setIoTask(ChannelingTask.DO_CLOSE);
+
+        return this;
+    }
+
+    @Override
+    public void close(Then then) {
+        // TODO Shouldn't be here
+    }
+
+    @Override
+    public void close(WhenChannelingSocket when, Then then) {
+        // TODO Shouldn't be here
+    }
 
 }

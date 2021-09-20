@@ -166,21 +166,16 @@ public class ChannelingServer implements AutoCloseable {
 
     }
 
-    int i = 0;
-
     private void closeErrorSocketSilently(ChannelingSocket channelingSocket, Exception e) {
         if (e != null) {
             e.printStackTrace();
+            channelingSocket.getErrorCallBack().error(channelingSocket, e);
         }
 //        if(channelingSocket instanceof ChannelSSLRunner) {
 //          SSLSocketChannel sslSocketChannel = (SSLSocketChannel) channelingSocket.getSocketChannel();
 //          sslSocketChannel.get
 //        }
-        channelingSocket.close(s -> {
-            if (++i % 100 == 0) {
-                System.out.println(i + " released");
-            }
-        });
+        channelingSocket.close(s->{});
     }
 
 
@@ -224,8 +219,9 @@ public class ChannelingServer implements AutoCloseable {
                                 try {
                                     String responseMsg = massageResponseToString(httpResponseMessage);
                                     ByteBuffer writeBuffer = ByteBuffer.wrap(responseMsg.getBytes(charset));
-                                    socketRead.write(writeBuffer, this::closeSocketSilently, ChannelingServer.this::closeErrorSocketSilently);
+                                    socketRead.write(writeBuffer, this::closeSocketSilently, socketRead.getErrorCallBack());
                                 } catch (Exception e) {
+                                    socketRead.getErrorCallBack().error(socketRead, e);
                                     this.closeErrorSocketSilently(socketRead, e);
                                 }
                             });

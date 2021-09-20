@@ -48,15 +48,14 @@ public class TestServer {
 
         new Thread(() -> channelingServer.listen(this::localHostHandler)).start();
 
-//        int tick = 1000;
-//
-//        while(tick--> 0) {
-//            Thread.sleep(999);
-//            System.out.printf("tick %d\n", tick);
-//        }
-        Thread.sleep(1000);
+        int tick = 1000;
+
 
         new TestKits(channeling).multiThreadTestLocalhost("localhost", 8080, 4, 1000);
+        while(tick--> 0) {
+            Thread.sleep(999);
+            System.out.printf("tick %d\n", tick);
+        }
 
         channelingServer.stop();
     }

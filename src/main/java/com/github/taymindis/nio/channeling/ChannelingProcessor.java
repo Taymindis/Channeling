@@ -55,7 +55,7 @@ class ChannelingProcessor implements Runnable {
 //                Thread.sleep(0, peekPerNano);
 
             } catch (Exception e) {
-                log.error(e.getMessage(), e);
+                e.printStackTrace();
             }
         }
 
@@ -248,8 +248,10 @@ class ChannelingProcessor implements Runnable {
                 doRegister(SelectionKey.OP_ACCEPT, socket, $ssc);
                 //                $sc.keyFor(nioSelector).cancel();
                 break;
+            case DO_IDLE:
+                break;
             default:
-                throw new IOException("Ambiguous channeling action! ");
+                throw new IOException("Ambiguous channeling action! " + socket.getIoTask());
         }
     }
 
@@ -363,8 +365,10 @@ class ChannelingProcessor implements Runnable {
                     return doPredicateThenCallback(socket, 0, null, key);
                 }
                 return false;
+            case DO_IDLE:
+                return true;
             default:
-                throw new IOException("Ambiguous channeling action! ");
+                throw new IOException("Ambiguous channeling action! " + ioTask);
         }
     }
 
