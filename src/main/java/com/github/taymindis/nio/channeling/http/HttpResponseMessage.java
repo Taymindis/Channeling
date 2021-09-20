@@ -9,7 +9,8 @@ public class HttpResponseMessage {
     private Integer code = null;
     private String statusText = null;
     private final String httpVersion;
-
+    /** for Streaming only **/
+    private boolean done = false;
 
     public HttpResponseMessage(String httpVersion) {
         this.httpVersion = httpVersion;
@@ -73,5 +74,11 @@ public class HttpResponseMessage {
         return null;
     }
 
+    public boolean isDone() {
+        return done;
+    }
 
+    public void setDone(boolean done) {
+        this.done = done;
+    }
 }

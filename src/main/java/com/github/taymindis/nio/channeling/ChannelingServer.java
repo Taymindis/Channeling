@@ -10,6 +10,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -220,17 +221,26 @@ public class ChannelingServer implements AutoCloseable {
                     }
                     this.vHostRequestListener
                             .getOrDefault(vHost, defaultRequestListener)
-                            .handleRequest(request, (httpResponseMessage, charset) -> {
-                                if(charset == null) {
-                                    charset = StandardCharsets.UTF_8;
+                            .handleRequest(request, new ResponseCallback() {
+                                @Override
+                                public void write(HttpResponseMessage responseMessage, Charset charset, Then $then) {
+                                    if(charset == null) {
+                                        charset = StandardCharsets.UTF_8;
+                                    }
+                                    try {
+                                        String responseMsg = massageResponseToString(responseMessage);
+                                        ByteBuffer writeBuffer = ByteBuffer.wrap(responseMsg.getBytes(charset));
+                                        socketRead.write(writeBuffer, $then,
+                                                ChannelingServer.this.onWriteError);
+                                    } catch (Exception e) {
+                                        ChannelingServer.this.onWriteError.error(socketRead, e);
+                                    }
                                 }
-                                try {
-                                    String responseMsg = massageResponseToString(httpResponseMessage);
-                                    ByteBuffer writeBuffer = ByteBuffer.wrap(responseMsg.getBytes(charset));
-                                    socketRead.write(writeBuffer, this::closeSocketSilently,
-                                            this.onWriteError);
-                                } catch (Exception e) {
-                                    this.onWriteError.error(socketRead, e);
+
+                                @Override
+                                public void streamWrite(ByteBuffer b, Then $then) {
+                                    socketRead.write(b, $then,
+                                            ChannelingServer.this.onWriteError);
                                 }
                             });
                 }

@@ -120,7 +120,7 @@ public class TestServer {
                 res.addHeader("Content-Length", String.valueOf(content.length()));
                 res.addHeader("Content-Type", "text/plain");
 
-                callback.write(res, null);
+                callback.write(res, null, this::close);
             }, e -> {
                 Assertions.fail(e.getMessage(), e);
             });
@@ -132,6 +132,10 @@ public class TestServer {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private void close(ChannelingSocket socket) {
+        socket.close(s->{});
     }
 
 
@@ -181,7 +185,7 @@ public class TestServer {
         res.addHeader("Content-Length", String.valueOf(content.length()));
         res.addHeader("Content-Type", "text/plain");
 
-        callback.write(res, null);
+        callback.write(res, null, this::close);
     }
 
     private void otherHandler(HttpRequestMessage httpRequestMessage, ResponseCallback callback) {
@@ -198,7 +202,7 @@ public class TestServer {
         res.addHeader("Content-Length", String.valueOf(content.length()));
         res.addHeader("Content-Type", "text/html");
 
-        callback.write(res, null);
+        callback.write(res, null, this::close);
 
     }
 
