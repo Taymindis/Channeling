@@ -230,7 +230,9 @@ public class ChannelingServer implements AutoCloseable {
                                     try {
                                         String responseMsg = massageResponseToString(responseMessage);
                                         ByteBuffer writeBuffer = ByteBuffer.wrap(responseMsg.getBytes(charset));
-                                        socketRead.write(writeBuffer, $then,
+                                        socketRead.write(writeBuffer, socket-> {
+                                                    ChannelingServer.this.flush(socket, $then);
+                                                },
                                                 ChannelingServer.this.onWriteError);
                                     } catch (Exception e) {
                                         ChannelingServer.this.onWriteError.error(socketRead, e);
@@ -239,7 +241,9 @@ public class ChannelingServer implements AutoCloseable {
 
                                 @Override
                                 public void streamWrite(ByteBuffer b, Then $then) {
-                                    socketRead.write(b, $then,
+                                    socketRead.write(b, socket-> {
+                                                ChannelingServer.this.flush(socket, $then);
+                                            },
                                             ChannelingServer.this.onWriteError);
                                 }
                             });
@@ -327,6 +331,15 @@ public class ChannelingServer implements AutoCloseable {
         return message;
 
 
+    }
+
+    public void flush(ChannelingSocket channelingSocket, Then callback) {
+        ByteBuffer currWriteBuff = channelingSocket.getCurrWritingBuffer();
+        if (currWriteBuff.hasRemaining()) {
+            channelingSocket.write(currWriteBuff, s -> this.flush(s, callback));
+        } else {
+            callback.callback(channelingSocket);
+        }
     }
 
     public Channeling getChanneling() {
