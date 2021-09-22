@@ -1,9 +1,6 @@
 package com.github.taymindis.nio.channeling;
 
-import com.github.taymindis.nio.channeling.http.HttpRedirectableRequest;
-import com.github.taymindis.nio.channeling.http.HttpRequest;
-import com.github.taymindis.nio.channeling.http.HttpRequestBuilder;
-import com.github.taymindis.nio.channeling.http.HttpStreamRequest;
+import com.github.taymindis.nio.channeling.http.*;
 import org.junit.jupiter.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,7 +58,7 @@ public class TestHttpBuilder {
         requestBuilder.setPath("/");
 
 
-        HttpRequest httpRequest = new HttpRequest(
+        HttpSingleRequest httpSingleRequest = new HttpSingleRequest(
                 cs,
                 "127.0.0.1",
                 80,
@@ -70,7 +67,7 @@ public class TestHttpBuilder {
         );
 
 
-        httpRequest.execute(httpResponse -> {
+        httpSingleRequest.execute(httpResponse -> {
 //            System.out.println("\""+result+"\"");
             String result = httpResponse.getBodyContent();
             Assertions.assertTrue(result.toLowerCase().contains("</html>"), result.substring(result.length() - 15));
@@ -108,7 +105,7 @@ public class TestHttpBuilder {
         requestBuilder.setPath(uri.getPath() + (uri.getRawQuery() != null ? "?" + uri.getRawQuery() : ""));
 
 
-        HttpRequest httpRequest = new HttpRequest(
+        HttpSingleRequest httpSingleRequest = new HttpSingleRequest(
                 cs,
                 uri.getHost(),
                 port,
@@ -117,7 +114,7 @@ public class TestHttpBuilder {
         );
 
 
-        httpRequest.execute(httpResponse -> {
+        httpSingleRequest.execute(httpResponse -> {
 //            System.out.println("\""+result+"\"");
             String result = httpResponse.getBodyContent();
             Map<String, String> headers = httpResponse.getHeaderAsMap();
@@ -161,7 +158,7 @@ public class TestHttpBuilder {
         requestBuilder.setPath(uri.getPath() + (uri.getRawQuery() != null ? "?" + uri.getRawQuery() : ""));
 
 
-        HttpRequest httpRequest = new HttpRedirectableRequest(
+        HttpSingleRequest httpSingleRequest = new HttpRedirectableRequest(
                 cs,
                 uri.getHost(),
                 80,
@@ -175,7 +172,7 @@ public class TestHttpBuilder {
                 }
         );
 
-        httpRequest.execute(httpResponse -> {
+        httpSingleRequest.execute(httpResponse -> {
 //            System.out.println("\""+result+"\"");
             String result = httpResponse.getBodyContent();
             Map<String, String> headers = httpResponse.getHeaderAsMap();
@@ -243,7 +240,7 @@ public class TestHttpBuilder {
         requestBuilder.setPath("/");
 
 
-        HttpStreamRequest streamRequest = new HttpStreamRequest(
+        HttpRequest streamRequest = new HttpStreamRequest(
                 cs,
                 host,
                 port,
@@ -252,7 +249,7 @@ public class TestHttpBuilder {
         );
 
 
-        HttpRequest request = new HttpRequest(
+        HttpRequest request = new HttpSingleRequest(
                 cs2,
                 host,
                 port,
@@ -261,7 +258,7 @@ public class TestHttpBuilder {
         );
 
 
-        streamRequest.execute((chunked, isLast) -> {
+        streamRequest.execute((chunked, isLast, attachment) -> {
             System.out.println(new String(chunked, StandardCharsets.UTF_8));
             if (isLast) {
                 countDownLatch.countDown();

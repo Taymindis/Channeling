@@ -1,16 +1,19 @@
 package com.github.taymindis.nio.channeling.http;
 
-import com.github.taymindis.nio.channeling.BytesHelper;
 import com.github.taymindis.nio.channeling.ChannelingSocket;
 import com.github.taymindis.nio.channeling.WhenConnectingStatus;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 
-public class HttpStreamRequest implements HttpRequest {
+public class HttpSingleRequest implements HttpRequest {
     private int totalRead = 0, totalWrite, requiredLength, bodyOffset;
     private ByteBuffer readBuffer;
     private String messageToSend;
@@ -18,21 +21,23 @@ public class HttpStreamRequest implements HttpRequest {
     private int port;
     private ByteArrayOutputStream response;
     private ChannelingSocket socket;
-    private HttpStreamRequestCallback streamChunked;
+    private Consumer<HttpResponse> result;
     private Consumer<Exception> error;
+    private byte[] lastConsumedBytes;
     private HttpResponseType responseType;
     private ContentEncodingType contentEncodingType;
-    private byte[] currConsumedBytes;
-
+    private HttpResponse httpResponse;
     private final boolean enableGzipDecompression;
+    private RedirectionSocket redirectionSocket;
+    private String prevRedirectionLoc;
 
-    public HttpStreamRequest(ChannelingSocket socket,
+    public HttpSingleRequest(ChannelingSocket socket,
                              String host, int port,
                              String messageToSend) {
         this(socket, host, port, messageToSend, 1024);
     }
 
-    public HttpStreamRequest(ChannelingSocket socket,
+    public HttpSingleRequest(ChannelingSocket socket,
                              String host,
                              int port,
                              String messageToSend,
@@ -40,7 +45,7 @@ public class HttpStreamRequest implements HttpRequest {
         this(socket, host, port, messageToSend, minInputBufferSize, false);
     }
 
-    public HttpStreamRequest(ChannelingSocket socket,
+    public HttpSingleRequest(ChannelingSocket socket,
                              String host,
                              int port,
                              String messageToSend,
@@ -50,7 +55,7 @@ public class HttpStreamRequest implements HttpRequest {
 
     }
 
-    protected HttpStreamRequest(ChannelingSocket socket,
+    protected HttpSingleRequest(ChannelingSocket socket,
                                 String host,
                                 int port,
                                 String messageToSend,
@@ -67,13 +72,19 @@ public class HttpStreamRequest implements HttpRequest {
         this.contentEncodingType = ContentEncodingType.PENDING;
         this.bodyOffset = -1;
         this.enableGzipDecompression = enableGzipDecompression;
+        this.redirectionSocket = redirectionSocket;
+        this.prevRedirectionLoc = null;
+    }
+
+    public void execute(Consumer<HttpResponse> result, Consumer<Exception> error) {
+        this.result = result;
+        this.error = error;
+        socket.withConnect(host, port).when((WhenConnectingStatus) connectingStatus -> connectingStatus).then(this::connectAndThen, this::error);
     }
 
     @Override
     public void execute(HttpStreamRequestCallback callback, Consumer<Exception> error) {
-        this.streamChunked = callback;
-        this.error = error;
-        socket.withConnect(host, port).when((WhenConnectingStatus) connectingStatus -> connectingStatus).then(this::connectAndThen, this::error);
+        throw new UnsupportedOperationException("HttpRequest un-support StreamResponse");
     }
 
     public int getTotalRead() {
@@ -106,6 +117,7 @@ public class HttpStreamRequest implements HttpRequest {
             channelingSocket.write(currWriteBuff, this::writeAndThen);
         } else {
             readBuffer.clear();
+            httpResponse = new HttpResponse();
             channelingSocket.withEagerRead(readBuffer).then(this::readAndThen);
         }
     }
@@ -124,10 +136,9 @@ public class HttpStreamRequest implements HttpRequest {
                 readBuffer.flip();
                 byte[] b = new byte[readBuffer.limit() - readBuffer.position()];
                 readBuffer.get(b);
-                currConsumedBytes = b;
+                lastConsumedBytes = b;
+                extractResponseAndEncodingType(b);
                 response.write(b);
-                streamChunked.accept(b, false, channelingSocket.getContext());
-                extractResponseAndEncodingType(response.toByteArray());
                 readBuffer.clear();
                 channelingSocket.withEagerRead(readBuffer).then(this::readAndThen);
             } else if (totalRead == 0) {
@@ -165,27 +176,30 @@ public class HttpStreamRequest implements HttpRequest {
 
     private void extractResponseAndEncodingType(byte[] bytes) throws Exception {
         if (responseType == HttpResponseType.PENDING || contentEncodingType == ContentEncodingType.PENDING) {
-            if ((bodyOffset = BytesHelper.indexOf(bytes, "\r\n\r\n".getBytes())) > 0) {
+            String consumeMessage = parseToString(bytes);
+            if ((bodyOffset = consumeMessage.indexOf("\r\n\r\n")) > 0) {
                 bodyOffset += 4;
-            } else if ((bodyOffset = BytesHelper.indexOf(bytes, "\n\n".getBytes())) > 0) {
+            } else if ((bodyOffset = consumeMessage.indexOf("\n\n")) > 0) {
                 bodyOffset += 2;
             }
 
-            // Means done header bytes
+            // Means done header rendered
             if (bodyOffset > 0) {
-//                String headersContent = consumeMessage.substring(0, bodyOffset);
-//                httpResponse.setHeaders(headersContent);
-                String lowCaseHeaders = new String(bytes).toLowerCase();
+                String headersContent = consumeMessage.substring(0, bodyOffset);
+                httpResponse.setHeaders(headersContent);
+                String lowCaseHeaders = headersContent.toLowerCase();
                 if (lowCaseHeaders.contains("transfer-encoding:")) {
                     responseType = HttpResponseType.TRANSFER_CHUNKED;
-                } else if (lowCaseHeaders.contains("content-length:")) {
+                } else if (lowCaseHeaders.contains("content-length: ")) {
                     String contentLength = lowCaseHeaders.substring(lowCaseHeaders.indexOf("content-length:") + "content-length:".length()).split("\\r?\\n", 2)[0];
                     requiredLength = Integer.parseInt(contentLength.trim());
                     responseType = HttpResponseType.CONTENT_LENGTH;
                 } else {
-                    requiredLength = bytes.length - bodyOffset;
+                    requiredLength = consumeMessage.length() - bodyOffset;
                     responseType = HttpResponseType.CONTENT_LENGTH;
                 }
+
+                httpResponse.setResponseType(responseType);
 
                 if (lowCaseHeaders.contains("content-encoding: gzip")) {
                     contentEncodingType = ContentEncodingType.GZIP;
@@ -199,12 +213,12 @@ public class HttpStreamRequest implements HttpRequest {
     }
 
     private void extraBodyOffsetOnly(byte[] bytes) {
-//        String consumeMessage = parseToString(bytes);
+        String consumeMessage = parseToString(bytes);
         if (bodyOffset == -1) {
-            if ((bodyOffset = BytesHelper.indexOf(bytes, "\r\n\r\n".getBytes())) > 0) {
+            if ((bodyOffset = consumeMessage.indexOf("\r\n\r\n")) > 0) {
                 bodyOffset += 4;
                 requiredLength += bodyOffset;
-            } else if ((bodyOffset = BytesHelper.indexOf(bytes, "\n\n".getBytes())) > 0) {
+            } else if ((bodyOffset = consumeMessage.indexOf("\n\n")) > 0) {
                 bodyOffset += 2;
                 requiredLength += bodyOffset;
             }
@@ -216,22 +230,95 @@ public class HttpStreamRequest implements HttpRequest {
         byte[] totalConsumedBytes = response.toByteArray();
         int len = totalConsumedBytes.length;
 
-        byte[] last5Bytes = BytesHelper.subBytes(totalConsumedBytes, len-5);
+        String last5Chars = new String(Arrays.copyOfRange(totalConsumedBytes, len - 5, len), StandardCharsets.UTF_8);
 
-        if (BytesHelper.equals(last5Bytes, "0\r\n\r\n".getBytes()) || BytesHelper.equals(last5Bytes, "0\n\n".getBytes(), 2)) {
+        if (last5Chars.equals("0\r\n\r\n") || last5Chars.substring(2).equals("0\n\n")) {
             channelingSocket.noEagerRead();
-            streamChunked.accept(currConsumedBytes,true, channelingSocket.getContext());
+            httpResponse.setRawBytes(totalConsumedBytes);
+            httpResponse.setBodyOffset(bodyOffset);
+            updateResponseType(httpResponse);
+
+            if(redirectionSocket != null) {
+                Map<String, String> headers = httpResponse.getHeaderAsMap();
+                if (headers.containsKey("Location")) {
+                    String location = headers.get("Location");
+                    if(!location.equals(prevRedirectionLoc)) {
+                        channelingSocket.close(cs -> {});
+                        redirectingRequest(location);
+                        execute(result, error);
+                        return;
+                    }
+                }
+            }
+            result.accept(httpResponse);
             channelingSocket.close(this::closeAndThen);
         } else {
             eagerRead(channelingSocket);
         }
     }
 
+    private void redirectingRequest(String location) throws Exception {
+        URI uri = new URI(location);
+        host = uri.getHost();
+        boolean isSSL = uri.getScheme().startsWith("https");
+
+        port = uri.getPort();
+
+        if(port < 0) {
+            port = isSSL ? 443 : 80;
+        }
+
+        this.socket = redirectionSocket.request(host, port, isSSL);
+        if(socket.isSSL()) {
+            this.readBuffer = ByteBuffer.allocate(socket.getSSLMinimumInputBufferSize());
+        } else {
+            this.readBuffer.clear();
+        }
+        this.response.close();
+        this.response = new ByteArrayOutputStream();
+        this.responseType = HttpResponseType.PENDING;
+        this.contentEncodingType = ContentEncodingType.PENDING;
+        this.bodyOffset = -1;
+        this.prevRedirectionLoc = location;
+
+        HttpRequestBuilder requestBuilder = new HttpRequestBuilder();
+        requestBuilder.setMethod("GET");
+        requestBuilder.addHeader("Host", host + ":"+port);
+        requestBuilder.setPath( uri.getPath() + (uri.getRawQuery()!=null? "?"+uri.getRawQuery():""));
+
+
+        this.messageToSend = requestBuilder.toString();
+    }
+
+    private void updateResponseType(HttpResponse httpResponse) throws IOException {
+        if (contentEncodingType == ContentEncodingType.GZIP && enableGzipDecompression) {
+            httpResponse.setContentEncodingType(ContentEncodingType.GZIP);
+        } else {
+            httpResponse.setContentEncodingType(contentEncodingType);
+        }
+    }
 
     private void contentLengthResponse(ChannelingSocket channelingSocket) throws Exception {
         if (totalRead >= requiredLength) {
             channelingSocket.noEagerRead();
-            streamChunked.accept(currConsumedBytes,true, channelingSocket.getContext());
+            httpResponse.setRawBytes(response.toByteArray());
+            httpResponse.setBodyOffset(bodyOffset);
+            updateResponseType(httpResponse);
+
+            if(redirectionSocket != null) {
+                Map<String, String> headers = httpResponse.getHeaderAsMap();
+                if (headers.containsKey("Location")) {
+                    String location = headers.get("Location");
+                    if(!location.equals(prevRedirectionLoc)) {
+                        channelingSocket.close(cs -> {});
+                        redirectingRequest(location);
+                        execute(result, error);
+                        return;
+                    }
+                }
+            }
+
+            result.accept(httpResponse);
             channelingSocket.close(this::closeAndThen);
         } else {
             eagerRead(channelingSocket);
@@ -246,17 +333,37 @@ public class HttpStreamRequest implements HttpRequest {
     }
 
 
+    @Override
     public void closeAndThen(ChannelingSocket channelingSocket) {
         /** Do nothing **/
     }
 
+    @Override
     public void error(ChannelingSocket channelingSocket, Exception e) {
         error.accept(e);
         channelingSocket.close(this::closeAndThen);
     }
 
-    @Override
-    public void execute(Consumer<HttpResponse> result, Consumer<Exception> error) throws IOException {
-        throw new UnsupportedOperationException("Stream Request un-support HttpResponse");
+    /**
+     This is derived from
+     https://github.com/patrickfav/bytes-java
+     */
+    static int indexOf(byte[] array, byte[] target, int start, int end) {
+        Objects.requireNonNull(array, "array must not be null");
+        Objects.requireNonNull(target, "target must not be null");
+        if (target.length == 0 || start < 0) {
+            return -1;
+        }
+
+        outer:
+        for (int i = start; i < Math.min(end, array.length - target.length + 1); i++) {
+            for (int j = 0; j < target.length; j++) {
+                if (array[i + j] != target[j]) {
+                    continue outer;
+                }
+            }
+            return i;
+        }
+        return -1;
     }
 }

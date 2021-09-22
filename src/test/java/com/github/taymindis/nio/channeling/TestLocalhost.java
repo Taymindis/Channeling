@@ -1,6 +1,6 @@
 package com.github.taymindis.nio.channeling;
 
-import com.github.taymindis.nio.channeling.http.HttpRequest;
+import com.github.taymindis.nio.channeling.http.HttpSingleRequest;
 import org.junit.jupiter.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,7 +47,7 @@ public class TestLocalhost {
         /** DO NOT USE RAW STRING, use HttpRequestBuilder instead **/
         /** DO NOT USE RAW STRING, use HttpRequestBuilder instead **/
         /** Please check the test case TestHttpBuilder **/
-        HttpRequest httpRequest = new HttpRequest(
+        HttpSingleRequest httpSingleRequest = new HttpSingleRequest(
                 cs,
                 "127.0.0.1",
                 80,
@@ -57,7 +57,7 @@ public class TestLocalhost {
         );
 
 
-        httpRequest.execute(httpResponse -> {
+        httpSingleRequest.execute(httpResponse -> {
 //            System.out.println("\""+result+"\"");
             String result = httpResponse.getBodyContent();
             Assertions.assertTrue(result.toLowerCase().contains("</html>"), result.substring(result.length() - 15));

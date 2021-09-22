@@ -98,7 +98,7 @@ public class TestServer {
 
 
 
-            SingleRequest httpRequest = new HttpRequest(
+            HttpRequest httpRequest = new HttpSingleRequest(
                     cs,
                     host,
                     port,

@@ -2,7 +2,7 @@ package com.github.taymindis.nio.channeling.http;
 
 import com.github.taymindis.nio.channeling.ChannelingSocket;
 
-public class HttpRedirectableRequest extends HttpRequest {
+public class HttpRedirectableRequest extends HttpSingleRequest {
 
     public HttpRedirectableRequest(ChannelingSocket socket,
                                    String host, int port,

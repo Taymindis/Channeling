@@ -1,6 +1,6 @@
 package com.github.taymindis.nio.channeling;
 
-import com.github.taymindis.nio.channeling.http.HttpRequest;
+import com.github.taymindis.nio.channeling.http.HttpSingleRequest;
 import org.junit.jupiter.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +40,7 @@ public class TestProxySSL {
 
         ChannelingSocket cs = channeling.wrapProxySSL(channelingProxy, "TLSv1.2", "openapi.abcfoo.com", 443, null);
 
-        HttpRequest httpRequest = new HttpRequest(
+        HttpSingleRequest httpSingleRequest = new HttpSingleRequest(
                 cs,
                 "openapi.abcfoo.com",
                 443,
@@ -50,7 +50,7 @@ public class TestProxySSL {
         );
 
 
-        httpRequest.execute(httpResponse -> {
+        httpSingleRequest.execute(httpResponse -> {
 //            System.out.println("\""+result+"\"");
             String result = httpResponse.getBodyContent();
             Assertions.assertTrue(result.contains("</html>"), result.substring(result.length() - 15));
