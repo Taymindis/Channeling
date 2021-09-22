@@ -140,7 +140,7 @@ public class TestHttpBuilder {
 //        System.setProperty("jdk.tls.client.protocols", "TLSv1.2");
         channeling.enableSSL(4);
         CountDownLatch countDownLatch = new CountDownLatch(1);
-        ChannelingSocket cs = channeling.wrap(null);
+        ChannelingSocket cs = channeling.wrap("a");
 
         URI uri = new URI("http://mykiehls.crmxs.com/");
         String host = uri.getHost();
@@ -164,9 +164,9 @@ public class TestHttpBuilder {
                 80,
                 requestBuilder.toString(),
                 1024,
-                (hostTo, portTo, isSSLTo) -> {
+                (hostTo, portTo, isSSLTo, prevContext) -> {
                     if (isSSLTo) {
-                        return channeling.wrapSSL("TLSv1.2", hostTo, portTo, null);
+                        return channeling.wrapSSL("TLSv1.2", hostTo, portTo, prevContext);
                     }
                     return channeling.wrap(null);
                 }

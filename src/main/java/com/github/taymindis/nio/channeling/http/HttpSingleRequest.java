@@ -243,8 +243,9 @@ public class HttpSingleRequest implements HttpRequest {
                 if (headers.containsKey("Location")) {
                     String location = headers.get("Location");
                     if(!location.equals(prevRedirectionLoc)) {
+                        Object prevContext = channelingSocket.getContext();
                         channelingSocket.close(cs -> {});
-                        redirectingRequest(location);
+                        redirectingRequest(location, prevContext);
                         execute(result, error);
                         return;
                     }
@@ -257,7 +258,7 @@ public class HttpSingleRequest implements HttpRequest {
         }
     }
 
-    private void redirectingRequest(String location) throws Exception {
+    private void redirectingRequest(String location, Object prevContext) throws Exception {
         URI uri = new URI(location);
         host = uri.getHost();
         boolean isSSL = uri.getScheme().startsWith("https");
@@ -268,7 +269,7 @@ public class HttpSingleRequest implements HttpRequest {
             port = isSSL ? 443 : 80;
         }
 
-        this.socket = redirectionSocket.request(host, port, isSSL);
+        this.socket = redirectionSocket.request(host, port, isSSL, prevContext);
         if(socket.isSSL()) {
             this.readBuffer = ByteBuffer.allocate(socket.getSSLMinimumInputBufferSize());
         } else {
@@ -310,8 +311,9 @@ public class HttpSingleRequest implements HttpRequest {
                 if (headers.containsKey("Location")) {
                     String location = headers.get("Location");
                     if(!location.equals(prevRedirectionLoc)) {
+                        Object prevContext = channelingSocket.getContext();
                         channelingSocket.close(cs -> {});
-                        redirectingRequest(location);
+                        redirectingRequest(location, prevContext);
                         execute(result, error);
                         return;
                     }
