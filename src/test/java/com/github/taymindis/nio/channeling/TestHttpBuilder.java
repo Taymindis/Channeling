@@ -245,7 +245,7 @@ public class TestHttpBuilder {
                 host,
                 port,
                 requestBuilder.toString(),
-                1024
+                cs.getSSLMinimumInputBufferSize()
         );
 
 
@@ -254,7 +254,7 @@ public class TestHttpBuilder {
                 host,
                 port,
                 requestBuilder.toString(),
-                1024
+                cs.getSSLMinimumInputBufferSize()
         );
 
 
