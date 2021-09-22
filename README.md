@@ -18,7 +18,7 @@ public void testRequestBuilder() throws Exception {
 
 
 
-        HttpRequest httpRequest = new HttpRequest(
+        HttpRequest httpSingleRequest = new HttpRequest(
                 cs,
                 "127.0.0.1",
                 80,
@@ -27,7 +27,7 @@ public void testRequestBuilder() throws Exception {
         );
 
 
-        httpRequest.get(httpResponse -> {
+        httpSingleRequest.get(httpResponse -> {
             String result = httpResponse.getBodyContent();
             Assertions.assertTrue(result.toLowerCase().contains("</html>"), result.substring(result.length() - 15));
             totalDone.incrementAndGet();
@@ -53,7 +53,7 @@ public void testSSL() throws Exception {
         CountDownLatch countDownLatch = new CountDownLatch(1);
         ChannelingSocket cs = channeling.wrapSSL("TLSv1.2", "mycamel.abcfoo.com", 443, null);
         String host = "mycamel.abcfoo.com";
-        HttpRequest httpRequest = new HttpRequest(
+        HttpRequest httpSingleRequest = new HttpSingleRequest(
                 cs,
                 host,
                 443,
@@ -64,7 +64,7 @@ public void testSSL() throws Exception {
         );
 
 
-        httpRequest.get(httpResponse -> {
+        httpSingleRequest.get(httpResponse -> {
             String result = httpResponse.getBodyContent();
             Assertions.assertTrue(result.toLowerCase().contains("</html>"), result.substring(result.length() - 15));
 
@@ -145,7 +145,7 @@ public void testSSL() throws Exception {
 
         ChannelingSocket cs = channeling.wrapProxy(channelingProxy, null);
 
-        HttpRequest httpRequest = new HttpRequest(
+        HttpRequest httpSingleRequest = new HttpRequest(
                 cs,
                 "openapi.abcfoo.com",
                 80,
@@ -154,7 +154,7 @@ public void testSSL() throws Exception {
                 1024
         );
 
-        httpRequest.get(httpResponse -> {
+        httpSingleRequest.get(httpResponse -> {
             String result = httpResponse.getBodyContent();
             Assertions.assertTrue(result.contains("</html>"), result.substring(result.length() - 15));
             totalDone.incrementAndGet();
