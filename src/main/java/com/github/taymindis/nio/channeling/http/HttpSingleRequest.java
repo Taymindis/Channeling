@@ -21,8 +21,8 @@ public class HttpSingleRequest implements HttpRequest {
     private int port;
     private ByteArrayOutputStream response;
     private ChannelingSocket socket;
-    private Consumer<HttpResponse> result;
-    private Consumer<Exception> error;
+    private HttpResponseCallback result;
+    private HttpErrorCallback error;
     private byte[] lastConsumedBytes;
     private HttpResponseType responseType;
     private ContentEncodingType contentEncodingType;
@@ -76,14 +76,14 @@ public class HttpSingleRequest implements HttpRequest {
         this.prevRedirectionLoc = null;
     }
 
-    public void execute(Consumer<HttpResponse> result, Consumer<Exception> error) {
+    public void execute(HttpResponseCallback result, HttpErrorCallback error) {
         this.result = result;
         this.error = error;
         socket.withConnect(host, port).when((WhenConnectingStatus) connectingStatus -> connectingStatus).then(this::connectAndThen, this::error);
     }
 
     @Override
-    public void execute(HttpStreamRequestCallback callback, Consumer<Exception> error) {
+    public void execute(HttpStreamRequestCallback callback, HttpErrorCallback error) {
         throw new UnsupportedOperationException("HttpRequest un-support StreamResponse");
     }
 
@@ -251,7 +251,7 @@ public class HttpSingleRequest implements HttpRequest {
                     }
                 }
             }
-            result.accept(httpResponse);
+            result.accept(httpResponse, channelingSocket.getContext());
             channelingSocket.close(this::closeAndThen);
         } else {
             eagerRead(channelingSocket);
@@ -320,7 +320,7 @@ public class HttpSingleRequest implements HttpRequest {
                 }
             }
 
-            result.accept(httpResponse);
+            result.accept(httpResponse, channelingSocket.getContext());
             channelingSocket.close(this::closeAndThen);
         } else {
             eagerRead(channelingSocket);
@@ -342,7 +342,7 @@ public class HttpSingleRequest implements HttpRequest {
 
     @Override
     public void error(ChannelingSocket channelingSocket, Exception e) {
-        error.accept(e);
+        error.accept(e, channelingSocket.getContext());
         channelingSocket.close(this::closeAndThen);
     }
 

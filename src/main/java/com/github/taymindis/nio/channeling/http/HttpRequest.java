@@ -16,7 +16,7 @@ public interface HttpRequest {
 
     void error(ChannelingSocket channelingSocket,Exception e);
 
-    void execute(Consumer<HttpResponse> result, Consumer<Exception> error) throws IOException;
+    void execute(HttpResponseCallback callback, HttpErrorCallback error);
 
-    void execute(HttpStreamRequestCallback callback, Consumer<Exception> error);
+    void execute(HttpStreamRequestCallback callback, HttpErrorCallback error);
 }

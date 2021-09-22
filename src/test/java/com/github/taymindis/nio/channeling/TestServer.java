@@ -107,7 +107,7 @@ public class TestServer {
             );
             HttpResponseMessage res = new HttpResponseMessage();
 
-            httpRequest.execute(httpResponse -> {
+            httpRequest.execute((httpResponse, attachment) -> {
                 res.setCode(httpResponse.getCode());
                 res.setStatusText(httpResponse.getStatusText());
                 res.setContent(httpResponse.getBodyContent());
@@ -121,7 +121,7 @@ public class TestServer {
                 res.addHeader("Content-Type", "text/plain");
 
                 callback.write(res, null, this::close);
-            }, e -> {
+            }, (e, attachment) -> {
                 Assertions.fail(e.getMessage(), e);
             });
 

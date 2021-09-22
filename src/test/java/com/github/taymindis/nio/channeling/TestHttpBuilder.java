@@ -67,13 +67,16 @@ public class TestHttpBuilder {
         );
 
 
-        httpSingleRequest.execute(httpResponse -> {
+        httpSingleRequest.execute((httpResponse, attachment)  -> {
 //            System.out.println("\""+result+"\"");
             String result = httpResponse.getBodyContent();
             Assertions.assertTrue(result.toLowerCase().contains("</html>"), result.substring(result.length() - 15));
             totalDone.incrementAndGet();
             countDownLatch.countDown();
-        }, Throwable::printStackTrace);
+        }, (exception, attachment) -> {
+            exception.printStackTrace();
+            countDownLatch.countDown();
+        });
 
 
         countDownLatch.await();
@@ -114,14 +117,14 @@ public class TestHttpBuilder {
         );
 
 
-        httpSingleRequest.execute(httpResponse -> {
+        httpSingleRequest.execute((httpResponse, attachment)  -> {
 //            System.out.println("\""+result+"\"");
             String result = httpResponse.getBodyContent();
             Map<String, String> headers = httpResponse.getHeaderAsMap();
             Assertions.assertTrue(result.toLowerCase().contains("ok"), result.length() > 15 ? result.substring(result.length() - 15) : "");
             totalDone.incrementAndGet();
             countDownLatch.countDown();
-        }, e -> {
+        }, (e, attachment)  -> {
             e.printStackTrace();
             countDownLatch.countDown();
         });
@@ -168,18 +171,18 @@ public class TestHttpBuilder {
                     if (isSSLTo) {
                         return channeling.wrapSSL("TLSv1.2", hostTo, portTo, prevContext);
                     }
-                    return channeling.wrap(null);
+                    return channeling.wrap(prevContext);
                 }
         );
 
-        httpSingleRequest.execute(httpResponse -> {
+        httpSingleRequest.execute((httpResponse, attachment) -> {
 //            System.out.println("\""+result+"\"");
             String result = httpResponse.getBodyContent();
             Map<String, String> headers = httpResponse.getHeaderAsMap();
             Assertions.assertTrue(result.toLowerCase().contains("</html>"), result.substring(result.length() - 15));
             totalDone.incrementAndGet();
             countDownLatch.countDown();
-        }, e -> {
+        }, (e, attachment) -> {
             e.printStackTrace();
             countDownLatch.countDown();
         });
@@ -263,18 +266,18 @@ public class TestHttpBuilder {
             if (isLast) {
                 countDownLatch.countDown();
             }
-        }, e -> {
+        }, (e, attachment) -> {
             e.printStackTrace();
             countDownLatch.countDown();
         });
 
-        request.execute(httpResponse -> {
+        request.execute((httpResponse, attachment) -> {
             String result = httpResponse.getBodyContent();
 
             Assertions.assertTrue(result.toLowerCase().contains("</html>"), result.substring(result.length() - 15));
 
             countDownLatch.countDown();
-        }, e -> {
+        }, (e, attachment)  -> {
             e.printStackTrace();
             countDownLatch.countDown();
         });

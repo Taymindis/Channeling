@@ -57,13 +57,16 @@ public class TestLocalhost {
         );
 
 
-        httpSingleRequest.execute(httpResponse -> {
+        httpSingleRequest.execute((httpResponse, attachment) -> {
 //            System.out.println("\""+result+"\"");
             String result = httpResponse.getBodyContent();
             Assertions.assertTrue(result.toLowerCase().contains("</html>"), result.substring(result.length() - 15));
             totalDone.incrementAndGet();
             countDownLatch.countDown();
-        }, Throwable::printStackTrace);
+        }, (exception, attachment) -> {
+            exception.printStackTrace();
+            countDownLatch.countDown();
+        });
 
 
         countDownLatch.await();

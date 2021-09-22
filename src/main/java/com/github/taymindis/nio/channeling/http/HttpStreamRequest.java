@@ -19,7 +19,7 @@ public class HttpStreamRequest implements HttpRequest {
     private ByteArrayOutputStream response;
     private ChannelingSocket socket;
     private HttpStreamRequestCallback streamChunked;
-    private Consumer<Exception> error;
+    private HttpErrorCallback error;
     private HttpResponseType responseType;
     private ContentEncodingType contentEncodingType;
     private byte[] currConsumedBytes;
@@ -70,7 +70,7 @@ public class HttpStreamRequest implements HttpRequest {
     }
 
     @Override
-    public void execute(HttpStreamRequestCallback callback, Consumer<Exception> error) {
+    public void execute(HttpStreamRequestCallback callback, HttpErrorCallback error) {
         this.streamChunked = callback;
         this.error = error;
         socket.withConnect(host, port).when((WhenConnectingStatus) connectingStatus -> connectingStatus).then(this::connectAndThen, this::error);
@@ -228,7 +228,7 @@ public class HttpStreamRequest implements HttpRequest {
     }
 
 
-    private void contentLengthResponse(ChannelingSocket channelingSocket) throws Exception {
+    private void contentLengthResponse(ChannelingSocket channelingSocket) {
         if (totalRead >= requiredLength) {
             channelingSocket.noEagerRead();
             streamChunked.accept(currConsumedBytes,true, channelingSocket.getContext());
@@ -251,12 +251,12 @@ public class HttpStreamRequest implements HttpRequest {
     }
 
     public void error(ChannelingSocket channelingSocket, Exception e) {
-        error.accept(e);
+        error.accept(e, channelingSocket.getContext());
         channelingSocket.close(this::closeAndThen);
     }
 
     @Override
-    public void execute(Consumer<HttpResponse> result, Consumer<Exception> error) throws IOException {
+    public void execute(HttpResponseCallback result, HttpErrorCallback error) {
         throw new UnsupportedOperationException("Stream Request un-support HttpResponse");
     }
 }

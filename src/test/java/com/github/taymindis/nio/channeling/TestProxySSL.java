@@ -50,13 +50,16 @@ public class TestProxySSL {
         );
 
 
-        httpSingleRequest.execute(httpResponse -> {
+        httpSingleRequest.execute((httpResponse, attachment) -> {
 //            System.out.println("\""+result+"\"");
             String result = httpResponse.getBodyContent();
             Assertions.assertTrue(result.contains("</html>"), result.substring(result.length() - 15));
             totalDone.incrementAndGet();
             countDownLatch.countDown();
-        }, Throwable::printStackTrace);
+        }, (exception, attachment) -> {
+            countDownLatch.countDown();
+            exception.printStackTrace();
+        });
 
 
         countDownLatch.await();

@@ -58,14 +58,17 @@ public class TestSSL {
         );
 
 
-        httpSingleRequest.execute(httpResponse -> {
+        httpSingleRequest.execute((httpResponse, attachment) -> {
             String result = httpResponse.getBodyContent();
 //            System.out.println("\""+result+"\"");
             Assertions.assertTrue(result.toLowerCase().contains("</html>"), result.substring(result.length() - 15));
 
             totalDone.incrementAndGet();
             countDownLatch.countDown();
-        }, Throwable::printStackTrace);
+        }, (exception, attachment) -> {
+            countDownLatch.countDown();
+            exception.printStackTrace();
+        });
 
 
         countDownLatch.await();

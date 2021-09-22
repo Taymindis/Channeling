@@ -59,13 +59,13 @@ public class TestKits {
         );
 
 
-        httpSingleRequest.execute(httpResponse -> {
+        httpSingleRequest.execute((httpResponse, attachment) -> {
 //            System.out.println("\""+result+"\"");
             String result = httpResponse.getBodyContent();
             Assertions.assertTrue(result.toLowerCase().contains("ok"));
             totalDone.incrementAndGet();
             countDownLatch.countDown();
-        }, e -> {
+        }, (e , attachment)-> {
 //            e.printStackTrace();
             countDownLatch.countDown();
             Assertions.fail(e.getMessage(), e);
@@ -149,13 +149,13 @@ public class TestKits {
         );
 
 
-        httpSingleRequest.execute(httpResponse -> {
+        httpSingleRequest.execute((httpResponse, attachment) -> {
 //            System.out.println("\""+result+"\"");
             String result = httpResponse.getBodyContent();
             Assertions.assertTrue(result.toLowerCase().contains("ok"));
             totalDone.incrementAndGet();
             countDownLatch.countDown();
-        }, e -> {
+        }, (e, attachment) -> {
 //            e.printStackTrace();
             countDownLatch.countDown();
             Assertions.fail(e.getMessage(), e);

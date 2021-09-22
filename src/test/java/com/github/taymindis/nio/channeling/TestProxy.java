@@ -56,13 +56,13 @@ public class TestProxy {
                 1024
         );
 
-        httpSingleRequest.execute(httpResponse -> {
+        httpSingleRequest.execute((httpResponse, attachment) -> {
 //            System.out.println("\""+result+"\"");
             String result = httpResponse.getBodyContent();
             Assertions.assertTrue(result.contains("</html>"), result.substring(result.length() - 15));
             totalDone.incrementAndGet();
             countDownLatch.countDown();
-        }, e -> {
+        }, (e, attachment) -> {
             countDownLatch.countDown();
             e.printStackTrace();
         });
