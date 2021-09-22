@@ -3,12 +3,14 @@ package com.github.taymindis.nio.channeling;
 import com.github.taymindis.nio.channeling.http.HttpRedirectableRequest;
 import com.github.taymindis.nio.channeling.http.HttpRequest;
 import com.github.taymindis.nio.channeling.http.HttpRequestBuilder;
+import com.github.taymindis.nio.channeling.http.HttpStreamRequest;
 import org.junit.jupiter.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
@@ -59,7 +61,6 @@ public class TestHttpBuilder {
         requestBuilder.setPath("/");
 
 
-
         HttpRequest httpRequest = new HttpRequest(
                 cs,
                 "127.0.0.1",
@@ -96,15 +97,15 @@ public class TestHttpBuilder {
 
         int port = uri.getPort();
 
-        if(port < 0) {
+        if (port < 0) {
             port = isSSL ? 443 : 80;
         }
         ChannelingSocket cs = channeling.wrapSSL(context, host, port, null);
 
         HttpRequestBuilder requestBuilder = new HttpRequestBuilder();
         requestBuilder.setMethod("GET");
-        requestBuilder.addHeader("Host", host + ":"+port);
-        requestBuilder.setPath( uri.getPath() + (uri.getRawQuery()!=null? "?"+uri.getRawQuery():""));
+        requestBuilder.addHeader("Host", host + ":" + port);
+        requestBuilder.setPath(uri.getPath() + (uri.getRawQuery() != null ? "?" + uri.getRawQuery() : ""));
 
 
         HttpRequest httpRequest = new HttpRequest(
@@ -112,15 +113,15 @@ public class TestHttpBuilder {
                 uri.getHost(),
                 port,
                 requestBuilder.toString(),
-                isSSL? cs.getSSLMinimumInputBufferSize() : 1024
+                isSSL ? cs.getSSLMinimumInputBufferSize() : 1024
         );
 
 
         httpRequest.execute(httpResponse -> {
 //            System.out.println("\""+result+"\"");
             String result = httpResponse.getBodyContent();
-            Map<String,String> headers = httpResponse.getHeaderAsMap();
-            Assertions.assertTrue(result.toLowerCase().contains("ok"), result.length() > 15 ? result.substring(result.length() - 15):"");
+            Map<String, String> headers = httpResponse.getHeaderAsMap();
+            Assertions.assertTrue(result.toLowerCase().contains("ok"), result.length() > 15 ? result.substring(result.length() - 15) : "");
             totalDone.incrementAndGet();
             countDownLatch.countDown();
         }, e -> {
@@ -216,6 +217,74 @@ public class TestHttpBuilder {
         for (Future f : listF) {
             f.get();
         }
+    }
+
+
+    @Test
+    public void testStreamAndNormalRequestAtOnce() throws Exception {
+        CountDownLatch countDownLatch = new CountDownLatch(2);
+
+        URI uri = new URI("https://www.google.com.sg");
+        String host = uri.getHost();
+        boolean isSSL = uri.getScheme().startsWith("https");
+
+        int port = uri.getPort();
+
+        if (port < 0) {
+            port = isSSL ? 443 : 80;
+        }
+        ChannelingSocket cs = channeling.wrapSSL("TLSv1.2", host, port, null);
+        ChannelingSocket cs2 = channeling.wrapSSL("TLSv1.2", host, port, null);
+
+        HttpRequestBuilder requestBuilder = new HttpRequestBuilder();
+
+        requestBuilder.setMethod("GET");
+        requestBuilder.addHeader("Host", host);
+        requestBuilder.setPath("/");
+
+
+        HttpStreamRequest streamRequest = new HttpStreamRequest(
+                cs,
+                host,
+                port,
+                requestBuilder.toString(),
+                1024
+        );
+
+
+        HttpRequest request = new HttpRequest(
+                cs2,
+                host,
+                port,
+                requestBuilder.toString(),
+                1024
+        );
+
+
+        streamRequest.execute((chunked, isLast) -> {
+            System.out.println(new String(chunked, StandardCharsets.UTF_8));
+            if (isLast) {
+                countDownLatch.countDown();
+            }
+        }, e -> {
+            e.printStackTrace();
+            countDownLatch.countDown();
+        });
+
+        request.execute(httpResponse -> {
+            String result = httpResponse.getBodyContent();
+
+            Assertions.assertTrue(result.toLowerCase().contains("</html>"), result.substring(result.length() - 15));
+
+            countDownLatch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            countDownLatch.countDown();
+        });
+
+        countDownLatch.await();
+
+        logger.info("Done " + totalDone.get());
     }
 
     @AfterAll
