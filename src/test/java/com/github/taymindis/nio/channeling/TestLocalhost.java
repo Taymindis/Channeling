@@ -1,5 +1,7 @@
 package com.github.taymindis.nio.channeling;
 
+import com.github.taymindis.nio.channeling.http.HttpResponse;
+import com.github.taymindis.nio.channeling.http.HttpResponseCallback;
 import com.github.taymindis.nio.channeling.http.HttpSingleRequest;
 import org.junit.jupiter.api.*;
 import org.slf4j.Logger;
@@ -55,19 +57,23 @@ public class TestLocalhost {
                         "Host: 127.0.0.1:80\n\n",
                 1024
         );
-
-
-        httpSingleRequest.execute((httpResponse, attachment) -> {
+        httpSingleRequest.execute(new HttpResponseCallback() {
+            @Override
+            public void accept(HttpResponse response, Object attachment) {
 //            System.out.println("\""+result+"\"");
-            String result = httpResponse.getBodyContent();
-            Assertions.assertTrue(result.toLowerCase().contains("</html>"), result.substring(result.length() - 15));
-            totalDone.incrementAndGet();
-            countDownLatch.countDown();
-        }, (exception, attachment) -> {
-            exception.printStackTrace();
-            countDownLatch.countDown();
-        });
+                String result = response.getBodyContent();
+                Assertions.assertTrue(result.toLowerCase().contains("</html>"), result.substring(result.length() - 15));
+                totalDone.incrementAndGet();
+                countDownLatch.countDown();
+            }
 
+            @Override
+            public void error(Exception e, ChannelingSocket socket) {
+                e.printStackTrace();
+                countDownLatch.countDown();
+
+            }
+        });
 
         countDownLatch.await();
 

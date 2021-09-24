@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
+import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
@@ -65,19 +66,23 @@ public class TestHttpBuilder {
                 requestBuilder.toString(),
                 1024
         );
-
-
-        httpSingleRequest.execute((httpResponse, attachment)  -> {
+        httpSingleRequest.execute(new HttpResponseCallback() {
+            @Override
+            public void accept(HttpResponse response, Object attachment) {
 //            System.out.println("\""+result+"\"");
-            String result = httpResponse.getBodyContent();
-            Assertions.assertTrue(result.toLowerCase().contains("</html>"), result.substring(result.length() - 15));
-            totalDone.incrementAndGet();
-            countDownLatch.countDown();
-        }, (exception, attachment) -> {
-            exception.printStackTrace();
-            countDownLatch.countDown();
-        });
+                String result = response.getBodyContent();
+                Assertions.assertTrue(result.toLowerCase().contains("</html>"), result.substring(result.length() - 15));
+                totalDone.incrementAndGet();
+                countDownLatch.countDown();
+            }
 
+            @Override
+            public void error(Exception e, ChannelingSocket socket) {
+                e.printStackTrace();
+                countDownLatch.countDown();
+
+            }
+        });
 
         countDownLatch.await();
 
@@ -116,19 +121,23 @@ public class TestHttpBuilder {
                 isSSL ? cs.getSSLMinimumInputBufferSize() : 1024
         );
 
-
-        httpSingleRequest.execute((httpResponse, attachment)  -> {
+        httpSingleRequest.execute(new HttpResponseCallback() {
+            @Override
+            public void accept(HttpResponse response, Object attachment) {
 //            System.out.println("\""+result+"\"");
-            String result = httpResponse.getBodyContent();
-            Map<String, String> headers = httpResponse.getHeaderAsMap();
-            Assertions.assertTrue(result.toLowerCase().contains("ok"), result.length() > 15 ? result.substring(result.length() - 15) : "");
-            totalDone.incrementAndGet();
-            countDownLatch.countDown();
-        }, (e, attachment)  -> {
-            e.printStackTrace();
-            countDownLatch.countDown();
-        });
+                String result = response.getBodyContent();
+                Map<String, String> headers = response.getHeaderAsMap();
+                Assertions.assertTrue(result.toLowerCase().contains("ok"), result.length() > 15 ? result.substring(result.length() - 15) : "");
+                totalDone.incrementAndGet();
+                countDownLatch.countDown();
+            }
 
+            @Override
+            public void error(Exception e, ChannelingSocket socket) {
+                e.printStackTrace();
+                countDownLatch.countDown();
+            }
+        });
 
         countDownLatch.await();
 
@@ -174,19 +183,24 @@ public class TestHttpBuilder {
                     return channeling.wrap(prevContext);
                 }
         );
-
-        httpSingleRequest.execute((httpResponse, attachment) -> {
+        httpSingleRequest.execute(new HttpResponseCallback() {
+            @Override
+            public void accept(HttpResponse response, Object attachment) {
 //            System.out.println("\""+result+"\"");
-            String result = httpResponse.getBodyContent();
-            Map<String, String> headers = httpResponse.getHeaderAsMap();
-            Assertions.assertTrue(result.toLowerCase().contains("</html>"), result.substring(result.length() - 15));
-            totalDone.incrementAndGet();
-            countDownLatch.countDown();
-        }, (e, attachment) -> {
-            e.printStackTrace();
-            countDownLatch.countDown();
-        });
+                String result = response.getBodyContent();
+                Map<String, String> headers = response.getHeaderAsMap();
+                Assertions.assertTrue(result.toLowerCase().contains("</html>"), result.substring(result.length() - 15));
+                totalDone.incrementAndGet();
+                countDownLatch.countDown();
+            }
 
+            @Override
+            public void error(Exception e, ChannelingSocket socket) {
+                e.printStackTrace();
+                countDownLatch.countDown();
+
+            }
+        });
 
         countDownLatch.await();
 
@@ -222,9 +236,10 @@ public class TestHttpBuilder {
 
     @Test
     public void testStreamAndNormalRequestAtOnce() throws Exception {
-        CountDownLatch countDownLatch = new CountDownLatch(2);
+        int totalCall = 100;
+        CountDownLatch countDownLatch = new CountDownLatch(totalCall);
 
-        URI uri = new URI("https://www.google.com.sg");
+        URI uri = new URI("https://www.google.com.sg/");
         String host = uri.getHost();
         boolean isSSL = uri.getScheme().startsWith("https");
 
@@ -233,7 +248,6 @@ public class TestHttpBuilder {
         if (port < 0) {
             port = isSSL ? 443 : 80;
         }
-        ChannelingSocket cs = channeling.wrapSSL("TLSv1.2", host, port, null);
         ChannelingSocket cs2 = channeling.wrapSSL("TLSv1.2", host, port, null);
 
         HttpRequestBuilder requestBuilder = new HttpRequestBuilder();
@@ -242,47 +256,81 @@ public class TestHttpBuilder {
         requestBuilder.addHeader("Host", host);
         requestBuilder.setPath("/");
 
+        List<String> results = new ArrayList<>();
 
-        HttpRequest streamRequest = new HttpStreamRequest(
-                cs,
-                host,
-                port,
-                requestBuilder.toString(),
-                cs.getSSLMinimumInputBufferSize()
-        );
+        for (int i = 0; i < totalCall; i++) {
+            ChannelingSocket cs = channeling.wrapSSL("TLSv1.2", host, port, null);
 
-
-        HttpRequest request = new HttpSingleRequest(
-                cs2,
-                host,
-                port,
-                requestBuilder.toString(),
-                cs.getSSLMinimumInputBufferSize()
-        );
+            HttpRequest streamRequest = new HttpStreamRequest(
+                    cs,
+                    host,
+                    port,
+                    requestBuilder.toString(),
+                    cs.getSSLMinimumInputBufferSize()
+            );
 
 
-        streamRequest.execute((chunked, isLast, attachment) -> {
-            System.out.println(new String(chunked, StandardCharsets.UTF_8));
-            if (isLast) {
-                countDownLatch.countDown();
-            }
-        }, (e, attachment) -> {
-            e.printStackTrace();
-            countDownLatch.countDown();
-        });
+//        HttpRequest request = new HttpSingleRequest(
+//                cs2,
+//                host,
+//                port,
+//                requestBuilder.toString(),
+//                cs.getSSLMinimumInputBufferSize()
+//        );
 
-        request.execute((httpResponse, attachment) -> {
-            String result = httpResponse.getBodyContent();
+            streamRequest.execute(new HttpStreamRequestCallback() {
+                @Override
+                public void first(byte[] chunked, String headersContent, ChannelingSocket socket) throws IOException {
+                    /** DO NOTHING **/
+                }
 
-            Assertions.assertTrue(result.toLowerCase().contains("</html>"), result.substring(result.length() - 15));
+                @Override
+                public void accept(byte[] chunked, ChannelingSocket socket) {
+                    /** DO NOTHING **/
+                }
 
-            countDownLatch.countDown();
-        }, (e, attachment)  -> {
-            e.printStackTrace();
-            countDownLatch.countDown();
-        });
+                @Override
+                public void last(byte[] chunked, ChannelingSocket socket) {
+                    String result = new String(chunked, StandardCharsets.UTF_8);
+//                    Assertions.assertTrue(result.contains("</noscript>\r\n</html>"), result);
+                    boolean success = result.contains("</body></html>");
+
+                    if(!success) {
+                        System.out.println(result);
+                    }
+                    Assertions.assertTrue(success, result);
+                    results.add(result.substring(0, Math.min(result.length(), 100)));
+                    countDownLatch.countDown();
+                }
+
+                @Override
+                public void error(Exception e, ChannelingSocket socket) {
+                    Assertions.fail(e.getMessage());
+                    e.printStackTrace();
+                    countDownLatch.countDown();
+                }
+            });
+
+            Thread.sleep(100);
+        }
+
+//        request.execute((httpResponse, attachment) -> {
+//            String result = httpResponse.getBodyContent();
+//
+//            Assertions.assertTrue(result.toLowerCase().contains("</html>"), result.substring(result.length() - 15));
+//
+//            countDownLatch.countDown();
+//        }, (e, attachment)  -> {
+//            e.printStackTrace();
+//            countDownLatch.countDown();
+//        });
 
         countDownLatch.await();
+
+        for (String r :
+                results) {
+            System.out.println(r);
+        }
 
         logger.info("Done " + totalDone.get());
     }

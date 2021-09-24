@@ -52,8 +52,6 @@ class ChannelSSLRunner extends AbstractChannelRunner {
 
     ChannelSSLRunner(SSLEngine sslEngine, int sslWorker, Object context, int bufferSize,
                      Queue<ChannelingSocket> channelRunners, SocketChannel socketChannel) throws IOException {
-        socketChannel.configureBlocking(false);
-
         if (sslThreadPool == null) {
             sslThreadPool = new ThreadPoolExecutor(sslWorker, sslWorker, 25, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
         }

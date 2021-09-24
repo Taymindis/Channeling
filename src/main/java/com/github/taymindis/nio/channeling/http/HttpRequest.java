@@ -14,9 +14,9 @@ public interface HttpRequest {
 
     void closeAndThen(ChannelingSocket channelingSocket);
 
-    void error(ChannelingSocket channelingSocket,Exception e);
+//    void error(ChannelingSocket channelingSocket,Exception e);
 
-    void execute(HttpResponseCallback callback, HttpErrorCallback error);
+    void execute(HttpResponseCallback callback);
 
-    void execute(HttpStreamRequestCallback callback, HttpErrorCallback error);
+    void execute(HttpStreamRequestCallback callback);
 }

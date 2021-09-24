@@ -1,5 +1,7 @@
 package com.github.taymindis.nio.channeling;
 
+import com.github.taymindis.nio.channeling.http.HttpResponse;
+import com.github.taymindis.nio.channeling.http.HttpResponseCallback;
 import com.github.taymindis.nio.channeling.http.HttpSingleRequest;
 import org.junit.jupiter.api.*;
 import org.slf4j.Logger;
@@ -57,19 +59,23 @@ public class TestSSL {
                 cs.getSSLMinimumInputBufferSize(),false
         );
 
-
-        httpSingleRequest.execute((httpResponse, attachment) -> {
-            String result = httpResponse.getBodyContent();
+        httpSingleRequest.execute(new HttpResponseCallback() {
+            @Override
+            public void accept(HttpResponse response, Object attachment) {
+                String result = response.getBodyContent();
 //            System.out.println("\""+result+"\"");
-            Assertions.assertTrue(result.toLowerCase().contains("</html>"), result.substring(result.length() - 15));
+                Assertions.assertTrue(result.toLowerCase().contains("</html>"), result.substring(result.length() - 15));
 
-            totalDone.incrementAndGet();
-            countDownLatch.countDown();
-        }, (exception, attachment) -> {
-            countDownLatch.countDown();
-            exception.printStackTrace();
+                totalDone.incrementAndGet();
+                countDownLatch.countDown();
+            }
+
+            @Override
+            public void error(Exception e, ChannelingSocket socket) {
+                countDownLatch.countDown();
+                e.printStackTrace();
+            }
         });
-
 
         countDownLatch.await();
         if(totalDone.get() % 100 == 0)

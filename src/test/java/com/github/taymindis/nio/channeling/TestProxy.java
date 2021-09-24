@@ -1,5 +1,7 @@
 package com.github.taymindis.nio.channeling;
 
+import com.github.taymindis.nio.channeling.http.HttpResponse;
+import com.github.taymindis.nio.channeling.http.HttpResponseCallback;
 import com.github.taymindis.nio.channeling.http.HttpSingleRequest;
 import org.junit.jupiter.api.*;
 import org.slf4j.Logger;
@@ -55,18 +57,23 @@ public class TestProxy {
                 "Host: openapi.abcfoo.com:80\n\n",
                 1024
         );
-
-        httpSingleRequest.execute((httpResponse, attachment) -> {
+        httpSingleRequest.execute(new HttpResponseCallback() {
+            @Override
+            public void accept(HttpResponse response, Object attachment) {
 //            System.out.println("\""+result+"\"");
-            String result = httpResponse.getBodyContent();
-            Assertions.assertTrue(result.contains("</html>"), result.substring(result.length() - 15));
-            totalDone.incrementAndGet();
-            countDownLatch.countDown();
-        }, (e, attachment) -> {
-            countDownLatch.countDown();
-            e.printStackTrace();
-        });
+                String result = response.getBodyContent();
+                Assertions.assertTrue(result.contains("</html>"), result.substring(result.length() - 15));
+                totalDone.incrementAndGet();
+                countDownLatch.countDown();
 
+            }
+
+            @Override
+            public void error(Exception e, ChannelingSocket socket) {
+                countDownLatch.countDown();
+                e.printStackTrace();
+            }
+        });
 
         countDownLatch.await();
 

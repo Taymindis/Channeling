@@ -9,6 +9,9 @@ import javax.net.ssl.*;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.ByteBuffer;
 import java.security.KeyStore;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
@@ -52,7 +55,7 @@ public class TestServer {
 
 
         new TestKits(channeling).multiThreadTestLocalhost("localhost", 8080, 4, 1000);
-        while(tick--> 0) {
+        while (tick-- > 0) {
             Thread.sleep(999);
             System.out.printf("tick %d\n", tick);
         }
@@ -74,7 +77,29 @@ public class TestServer {
 
         int tick = 1000;
 
-        while(tick--> 0) {
+        while (tick-- > 0) {
+            Thread.sleep(999);
+            System.out.printf("tick %d\n", tick);
+        }
+
+        channelingServer.stop();
+    }
+
+    @Test
+    public void testProxyServerViaStreaming() throws Exception {
+        ChannelingServer channelingServer = new ChannelingServer(channeling, "localhost", 8080);
+
+        channelingServer.setBuffSize(1024);
+
+
+        TimeZone.setDefault(TimeZone.getTimeZone("Asia/Singapore"));
+        dateFormat = new SimpleDateFormat("yyyyMMdd hh:mm:ss");
+
+        new Thread(() -> channelingServer.listen(this::proxyStreamHandler)).start();
+
+        int tick = 1000;
+
+        while (tick-- > 0) {
             Thread.sleep(999);
             System.out.printf("tick %d\n", tick);
         }
@@ -84,11 +109,17 @@ public class TestServer {
 
     private void proxyHandler(HttpRequestMessage requestMessage, ResponseCallback callback) {
         try {
-            String host = "localhost";
-            int port = 9090;
 
+            URI uri = new URI("https://www.google.com.sg/");
+            String host = uri.getHost();
+            boolean isSSL = uri.getScheme().startsWith("https");
 
-            ChannelingSocket cs = channeling.wrap(null);
+            int port = uri.getPort();
+
+            if (port < 0) {
+                port = isSSL ? 443 : 80;
+            }
+            ChannelingSocket cs = channeling.wrapSSL("TLSv1.2", host, port, null);
 
             HttpRequestBuilder requestBuilder = new HttpRequestBuilder();
 
@@ -97,45 +128,127 @@ public class TestServer {
             requestBuilder.setPath("/");
 
 
-
             HttpRequest httpRequest = new HttpSingleRequest(
                     cs,
                     host,
                     port,
                     requestBuilder.toString(),
-                    1024
+                    isSSL ? cs.getSSLMinimumInputBufferSize() : 1024
             );
             HttpResponseMessage res = new HttpResponseMessage();
 
-            httpRequest.execute((httpResponse, attachment) -> {
-                res.setCode(httpResponse.getCode());
-                res.setStatusText(httpResponse.getStatusText());
-                res.setContent(httpResponse.getBodyContent());
-                res.addHeader("Content-Type", httpResponse.getHeader("Content-Type"));
+            httpRequest.execute(new HttpResponseCallback() {
+                @Override
+                public void accept(HttpResponse httpResponse, Object attachment) {
+                    res.setCode(httpResponse.getCode());
+                    res.setStatusText(httpResponse.getStatusText());
+                    res.setContent(httpResponse.getBodyContent());
+                    res.addHeader("Content-Type", httpResponse.getHeader("Content-Type"));
 
-                String content = (String) res.getContent();
+                    String content = (String) res.getContent();
 
-                res.addHeader("Date", dateFormat.format(new Date()));
-                res.addHeader("Server", "Channeling/1.0.5");
-                res.addHeader("Content-Length", String.valueOf(content.length()));
-                res.addHeader("Content-Type", "text/plain");
+                    res.addHeader("Date", dateFormat.format(new Date()));
+                    res.addHeader("Server", "Channeling/2.0.0");
+                    res.addHeader("Content-Length", String.valueOf(content.length() + 2));
+                    res.addHeader("Content-Type", "text/html");
 
-                callback.write(res, null, this::close);
-            }, (e, attachment) -> {
-                Assertions.fail(e.getMessage(), e);
+                    callback.write(res, null, TestServer.this::close);
+
+                }
+
+                @Override
+                public void error(Exception e, ChannelingSocket socket) {
+                    Assertions.fail(e.getMessage(), e);
+                }
+            });
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void proxyStreamHandler(HttpRequestMessage requestMessage, ResponseCallback callback) {
+        try {
+
+            URI uri = new URI("https://www.google.com.sg/");
+            String host = uri.getHost();
+            boolean isSSL = uri.getScheme().startsWith("https");
+
+            int port = uri.getPort();
+
+            if (port < 0) {
+                port = isSSL ? 443 : 80;
+            }
+            ChannelingSocket cs = channeling.wrapSSL("TLSv1.2", host, port, null);
+
+            HttpRequestBuilder requestBuilder = new HttpRequestBuilder();
+
+            requestBuilder.setMethod("GET");
+            requestBuilder.addHeader("Host", String.format("%s:%d", host, port));
+            requestBuilder.setPath("/");
+
+
+            HttpRequest httpRequest = new HttpStreamRequest(
+                    cs,
+                    host,
+                    port,
+                    requestBuilder.toString(),
+                    isSSL ? cs.getSSLMinimumInputBufferSize() : 1024
+            );
+
+            httpRequest.execute(new HttpStreamRequestCallback() {
+                @Override
+                public void first(byte[] chunked, String headersContent, ChannelingSocket socket) throws Exception {
+//                    byte[] headerBytes =
+//                            String.format("HTTP/1.1 200 OK\r\n" +
+//                                    "Content-Type: text/html\r\n" +
+//                                    "Transfer-Encoding: chunked\r\n\r\n" +
+//                                    "%d\r\n", chunked.length)
+//                                    .getBytes();
+
+                    Map<String, String> headerMap = HttpMessageHelper.massageHeaderContentToHeaderMap(headersContent);
+
+                    headerMap.put("Transfer-Encoding", "chunked");
+                    headerMap.remove("Content-Length");
+
+                    byte[] headerBytes = HttpMessageHelper.headerToBytes(headerMap, "HTTP/1.1 200 OK");
+
+                    callback.streamWrite(ByteBuffer.wrap(BytesHelper.concat(headerBytes, chunked)), clientSocket -> {
+                    });
+                }
+
+                @Override
+                public void accept(byte[] chunked, ChannelingSocket socket) {
+                    callback.streamWrite(ByteBuffer.wrap(chunked), clientSocket -> {
+                    });
+                }
+
+                @Override
+                public void last(byte[] chunked, ChannelingSocket socket) {
+                    System.out.println(new String(BytesHelper.subBytes(chunked, 0, chunked.length - 5)));
+                    callback.streamWrite(ByteBuffer.wrap(chunked), clientSocket -> {
+                        close(clientSocket);
+                    });
+
+                }
+
+                @Override
+                public void error(Exception e, ChannelingSocket socket) {
+                    Assertions.fail(e.getMessage(), e);
+                }
             });
 
 
-
-
-
-        } catch (IOException e) {
+        } catch (IOException | URISyntaxException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
     private void close(ChannelingSocket socket) {
-        socket.close(s->{});
+        socket.close(s -> {
+        });
     }
 
 
@@ -160,7 +273,7 @@ public class TestServer {
 //
         int tick = 1000;
 
-        while(tick--> 0) {
+        while (tick-- > 0) {
             Thread.sleep(999);
             System.out.printf("tick %d\n", tick);
         }
@@ -193,7 +306,7 @@ public class TestServer {
         HttpResponseMessage res = new HttpResponseMessage();
 
         res.setContent("<html>ok</html>");
-        String content =(String) res.getContent();
+        String content = (String) res.getContent();
 
         res.setCode(200);
         res.setStatusText("OK");

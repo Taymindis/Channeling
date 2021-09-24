@@ -1,7 +1,6 @@
 package com.github.taymindis.nio.channeling;
 
-import com.github.taymindis.nio.channeling.http.HttpSingleRequest;
-import com.github.taymindis.nio.channeling.http.HttpRequestBuilder;
+import com.github.taymindis.nio.channeling.http.*;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -50,7 +49,7 @@ public class TestKits {
 
 
 
-        HttpSingleRequest httpSingleRequest = new HttpSingleRequest(
+        HttpRequest httpSingleRequest = new HttpSingleRequest(
                 cs,
                 host,
                 port,
@@ -58,19 +57,24 @@ public class TestKits {
                 1024
         );
 
-
-        httpSingleRequest.execute((httpResponse, attachment) -> {
+        httpSingleRequest.execute(new HttpResponseCallback() {
+            @Override
+            public void accept(HttpResponse httpResponse, Object attachment) {
 //            System.out.println("\""+result+"\"");
-            String result = httpResponse.getBodyContent();
-            Assertions.assertTrue(result.toLowerCase().contains("ok"));
-            totalDone.incrementAndGet();
-            countDownLatch.countDown();
-        }, (e , attachment)-> {
-//            e.printStackTrace();
-            countDownLatch.countDown();
-            Assertions.fail(e.getMessage(), e);
-        });
+                String result = httpResponse.getBodyContent();
+                Assertions.assertTrue(result.toLowerCase().contains("ok"));
+                totalDone.incrementAndGet();
+                countDownLatch.countDown();
+            }
 
+            @Override
+            public void error(Exception e, ChannelingSocket socket) {
+//            e.printStackTrace();
+                countDownLatch.countDown();
+                Assertions.fail(e.getMessage(), e);
+
+            }
+        });
 
         countDownLatch.await();
 
@@ -138,7 +142,7 @@ public class TestKits {
         requestBuilder.setPath("/");
 
 
-        HttpSingleRequest httpSingleRequest = new HttpSingleRequest(
+        HttpRequest httpSingleRequest = new HttpSingleRequest(
                 cs,
                 host,
                 port,
@@ -148,19 +152,23 @@ public class TestKits {
                 cs.getSSLMinimumInputBufferSize(),false
         );
 
-
-        httpSingleRequest.execute((httpResponse, attachment) -> {
+        httpSingleRequest.execute(new HttpResponseCallback() {
+            @Override
+            public void accept(HttpResponse response, Object attachment) {
 //            System.out.println("\""+result+"\"");
-            String result = httpResponse.getBodyContent();
-            Assertions.assertTrue(result.toLowerCase().contains("ok"));
-            totalDone.incrementAndGet();
-            countDownLatch.countDown();
-        }, (e, attachment) -> {
-//            e.printStackTrace();
-            countDownLatch.countDown();
-            Assertions.fail(e.getMessage(), e);
-        });
+                String result = response.getBodyContent();
+                Assertions.assertTrue(result.toLowerCase().contains("ok"));
+                totalDone.incrementAndGet();
+                countDownLatch.countDown();
+            }
 
+            @Override
+            public void error(Exception e, ChannelingSocket socket) {
+//            e.printStackTrace();
+                countDownLatch.countDown();
+                Assertions.fail(e.getMessage(), e);
+            }
+        });
 
         countDownLatch.await();
 

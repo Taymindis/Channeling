@@ -22,7 +22,6 @@ public class HttpSingleRequest implements HttpRequest {
     private ByteArrayOutputStream response;
     private ChannelingSocket socket;
     private HttpResponseCallback result;
-    private HttpErrorCallback error;
     private byte[] lastConsumedBytes;
     private HttpResponseType responseType;
     private ContentEncodingType contentEncodingType;
@@ -76,14 +75,13 @@ public class HttpSingleRequest implements HttpRequest {
         this.prevRedirectionLoc = null;
     }
 
-    public void execute(HttpResponseCallback result, HttpErrorCallback error) {
-        this.result = result;
-        this.error = error;
+    public void execute(HttpResponseCallback callback) {
+        this.result = callback;
         socket.withConnect(host, port).when((WhenConnectingStatus) connectingStatus -> connectingStatus).then(this::connectAndThen, this::error);
     }
 
     @Override
-    public void execute(HttpStreamRequestCallback callback, HttpErrorCallback error) {
+    public void execute(HttpStreamRequestCallback callback) {
         throw new UnsupportedOperationException("HttpRequest un-support StreamResponse");
     }
 
@@ -243,10 +241,9 @@ public class HttpSingleRequest implements HttpRequest {
                 if (headers.containsKey("Location")) {
                     String location = headers.get("Location");
                     if(!location.equals(prevRedirectionLoc)) {
-                        Object prevContext = channelingSocket.getContext();
                         channelingSocket.close(cs -> {});
-                        redirectingRequest(location, prevContext);
-                        execute(result, error);
+                        redirectingRequest(location, channelingSocket);
+                        execute(result);
                         return;
                     }
                 }
@@ -258,7 +255,7 @@ public class HttpSingleRequest implements HttpRequest {
         }
     }
 
-    private void redirectingRequest(String location, Object prevContext) throws Exception {
+    private void redirectingRequest(String location, ChannelingSocket prevSocket) throws Exception {
         URI uri = new URI(location);
         host = uri.getHost();
         boolean isSSL = uri.getScheme().startsWith("https");
@@ -269,7 +266,7 @@ public class HttpSingleRequest implements HttpRequest {
             port = isSSL ? 443 : 80;
         }
 
-        this.socket = redirectionSocket.request(host, port, isSSL, prevContext);
+        this.socket = redirectionSocket.request(host, port, isSSL, prevSocket);
         if(socket.isSSL()) {
             this.readBuffer = ByteBuffer.allocate(socket.getSSLMinimumInputBufferSize());
         } else {
@@ -311,10 +308,9 @@ public class HttpSingleRequest implements HttpRequest {
                 if (headers.containsKey("Location")) {
                     String location = headers.get("Location");
                     if(!location.equals(prevRedirectionLoc)) {
-                        Object prevContext = channelingSocket.getContext();
                         channelingSocket.close(cs -> {});
-                        redirectingRequest(location, prevContext);
-                        execute(result, error);
+                        redirectingRequest(location, channelingSocket);
+                        execute(result);
                         return;
                     }
                 }
@@ -340,9 +336,8 @@ public class HttpSingleRequest implements HttpRequest {
         /** Do nothing **/
     }
 
-    @Override
-    public void error(ChannelingSocket channelingSocket, Exception e) {
-        error.accept(e, channelingSocket.getContext());
+    private void error(ChannelingSocket channelingSocket, Exception e) {
+        result.error(e, channelingSocket);
         channelingSocket.close(this::closeAndThen);
     }
 
