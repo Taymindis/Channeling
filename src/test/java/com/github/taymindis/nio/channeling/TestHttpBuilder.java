@@ -280,7 +280,7 @@ public class TestHttpBuilder {
 
             streamRequest.execute(new HttpStreamRequestCallback() {
                 @Override
-                public void first(byte[] chunked, String headersContent, ChannelingSocket socket) throws IOException {
+                public void header(String headersContent, ChannelingSocket socket) throws IOException {
                     /** DO NOTHING **/
                 }
 

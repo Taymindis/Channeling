@@ -6,13 +6,13 @@ import java.io.IOException;
 import java.util.function.Consumer;
 
 public interface HttpRequest {
-    void connectAndThen(ChannelingSocket channelingSocket);
-
-    void writeAndThen(ChannelingSocket channelingSocket);
-
-    void readAndThen(ChannelingSocket channelingSocket);
-
-    void closeAndThen(ChannelingSocket channelingSocket);
+//    void connectAndThen(ChannelingSocket channelingSocket);
+//
+//    void writeAndThen(ChannelingSocket channelingSocket);
+//
+//    void readAndThen(ChannelingSocket channelingSocket);
+//
+//    void closeAndThen(ChannelingSocket channelingSocket);
 
 //    void error(ChannelingSocket channelingSocket,Exception e);
 

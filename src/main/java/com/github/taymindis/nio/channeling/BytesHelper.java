@@ -13,6 +13,14 @@ public class BytesHelper {
         outputStream.write(b2);
         return outputStream.toByteArray();
     }
+    public static byte[] concat(byte[] ...byteArrays) throws IOException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        for (byte[] ba :
+                byteArrays) {
+            outputStream.write(ba);
+        }
+        return outputStream.toByteArray();
+    }
 
     public static int indexOf(byte[] data, byte[] target) {
         if (target == null || data == null || target.length == 0) {

@@ -198,7 +198,7 @@ public class TestServer {
 
             httpRequest.execute(new HttpStreamRequestCallback() {
                 @Override
-                public void first(byte[] chunked, String headersContent, ChannelingSocket socket) throws Exception {
+                public void header(String headersContent, ChannelingSocket socket) throws Exception {
 //                    byte[] headerBytes =
 //                            String.format("HTTP/1.1 200 OK\r\n" +
 //                                    "Content-Type: text/html\r\n" +
@@ -213,23 +213,36 @@ public class TestServer {
 
                     byte[] headerBytes = HttpMessageHelper.headerToBytes(headerMap, "HTTP/1.1 200 OK");
 
-                    callback.streamWrite(ByteBuffer.wrap(BytesHelper.concat(headerBytes, chunked)), clientSocket -> {
+                    callback.streamWrite(ByteBuffer.wrap(headerBytes), clientSocket -> {
                     });
                 }
 
                 @Override
                 public void accept(byte[] chunked, ChannelingSocket socket) {
-                    callback.streamWrite(ByteBuffer.wrap(chunked), clientSocket -> {
-                    });
+                    try {
+                        callback.streamWrite(ByteBuffer.wrap(BytesHelper
+                                .concat(String.format("%s\r\n", HttpMessageHelper.intToHex(chunked.length)).getBytes(), chunked, "\r\n".getBytes())), clientSocket -> {
+                        });
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
 
                 @Override
                 public void last(byte[] chunked, ChannelingSocket socket) {
-                    System.out.println(new String(BytesHelper.subBytes(chunked, 0, chunked.length - 5)));
-                    callback.streamWrite(ByteBuffer.wrap(chunked), clientSocket -> {
-                        close(clientSocket);
-                    });
-
+                    try {
+                        chunked = BytesHelper.subBytes(chunked, 0, chunked.length-5);
+//                        System.out.println(new String(chunked));
+                        callback.streamWrite(ByteBuffer.wrap(BytesHelper
+                                .concat(String.format(
+                                        "%s\r\n", HttpMessageHelper.intToHex(chunked.length)).getBytes(),
+                                        chunked,
+                                        "\r\n0\r\n\r\n".getBytes())), clientSocket -> {
+                            close(clientSocket);
+                        });
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
 
                 @Override

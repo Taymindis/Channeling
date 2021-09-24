@@ -22,7 +22,7 @@ public class HttpSingleRequest implements HttpRequest {
     private ByteArrayOutputStream response;
     private ChannelingSocket socket;
     private HttpResponseCallback result;
-    private byte[] lastConsumedBytes;
+    private int currChunkLength;
     private HttpResponseType responseType;
     private ContentEncodingType contentEncodingType;
     private HttpResponse httpResponse;
@@ -101,13 +101,11 @@ public class HttpSingleRequest implements HttpRequest {
         this.totalWrite = totalWrite;
     }
 
-    @Override
     public void connectAndThen(ChannelingSocket channelingSocket) {
         ByteBuffer writeBuffer = ByteBuffer.wrap(messageToSend.getBytes(StandardCharsets.UTF_8));
         channelingSocket.write(writeBuffer, this::writeAndThen);
     }
 
-    @Override
     public void writeAndThen(ChannelingSocket channelingSocket) {
         ByteBuffer currWriteBuff = channelingSocket.getCurrWritingBuffer();
         totalWrite += channelingSocket.getLastProcessedBytes();
@@ -120,7 +118,6 @@ public class HttpSingleRequest implements HttpRequest {
         }
     }
 
-    @Override
     public void readAndThen(ChannelingSocket channelingSocket) {
         int numRead = channelingSocket.getLastProcessedBytes();
         ByteBuffer readBuffer = channelingSocket.getReadBuffer();
@@ -134,7 +131,6 @@ public class HttpSingleRequest implements HttpRequest {
                 readBuffer.flip();
                 byte[] b = new byte[readBuffer.limit() - readBuffer.position()];
                 readBuffer.get(b);
-                lastConsumedBytes = b;
                 extractResponseAndEncodingType(b);
                 response.write(b);
                 readBuffer.clear();
@@ -331,7 +327,6 @@ public class HttpSingleRequest implements HttpRequest {
     }
 
 
-    @Override
     public void closeAndThen(ChannelingSocket channelingSocket) {
         /** Do nothing **/
     }
