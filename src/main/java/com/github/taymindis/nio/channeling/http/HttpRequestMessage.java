@@ -12,10 +12,10 @@ public class HttpRequestMessage {
     private String method;
     private String path;
     private String httpVersion;
-    private ChannelingSocket _sc;
+    private ChannelingSocket clientSocket;
 
     public HttpRequestMessage(ChannelingSocket sc) {
-        this._sc = sc;
+        this.clientSocket = sc;
     }
 
     public void setRemoteAddress(SocketAddress remoteAddress) {
@@ -70,11 +70,19 @@ public class HttpRequestMessage {
     }
 
     // For client later use
+    public ChannelingSocket getClientSocket() {
+        return clientSocket;
+    }
+
+    public void setClientSocket(ChannelingSocket $sc) {
+        this.clientSocket = $sc;
+    }
+
     public Object getContext() {
-        return _sc.getContext();
+        return clientSocket.getContext();
     }
 
     public void setContext(Object context) {
-        this._sc.setContext(context);
+        this.clientSocket.setContext(context);
     }
 }

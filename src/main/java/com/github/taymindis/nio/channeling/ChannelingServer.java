@@ -294,7 +294,7 @@ public class ChannelingServer implements AutoCloseable {
         }
 
 
-        String consumeMessage = parseToString(b);
+        String consumeMessage = parseToString(message.getRawBytes());
 
         message.fillCurrLen(consumeMessage.length());
 
