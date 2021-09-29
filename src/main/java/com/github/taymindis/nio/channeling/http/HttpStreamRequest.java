@@ -104,13 +104,12 @@ public class HttpStreamRequest implements HttpRequest {
                     streamChunked.header(reqHeaders, channelingSocket);
                     if (responseType == HttpResponseType.TRANSFER_CHUNKED) {
                         processChunked(currProcessingStream.toByteArray(), channelingSocket);
-                    }
-                    // TODO Is it only support transfer_chunked ?
-                    else {
+                    } else {
                         streamChunked.accept(currProcessingStream.toByteArray(), channelingSocket);
                         currProcessingStream.reset();
                         eagerRead(channelingSocket, this::massageContentLengthBody);
                     }
+                    return;
                 }
             }
             eagerRead(channelingSocket, this::massageHeader);

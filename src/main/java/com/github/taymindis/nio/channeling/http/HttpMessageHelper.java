@@ -9,6 +9,7 @@ public class HttpMessageHelper {
     public static String parseToString(byte[] consumedBytes) {
         return new String(consumedBytes, StandardCharsets.UTF_8);
     }
+
     public static void massageRequestHeader(HttpRequestMessage request, String headerContent) throws Exception {
 
         String[] headers = headerContent.split("\\r?\\n");
@@ -23,7 +24,7 @@ public class HttpMessageHelper {
         request.setPath(statusText[1]);
         request.setHttpVersion(statusText[2]);
 
-        Map<String,String> headerMap = new HashMap<>();
+        Map<String, String> headerMap = new HashMap<>();
 
         for (int i = 1, size = headers.length; i < size; i++) {
             String header = headers[i];
@@ -36,7 +37,7 @@ public class HttpMessageHelper {
         request.setHeaderMap(headerMap);
     }
 
-    public static Map<String,String> massageHeaderContentToHeaderMap(String headerContent) throws Exception {
+    public static Map<String, String> massageHeaderContentToHeaderMap(String headerContent) throws Exception {
         return massageHeaderContentToHeaderMap(headerContent, true);
     }
 
@@ -50,7 +51,7 @@ public class HttpMessageHelper {
     }
 
 
-    public static Map<String,String> massageHeaderContentToHeaderMap(String headerContent, boolean skipStatusLine) throws Exception {
+    public static Map<String, String> massageHeaderContentToHeaderMap(String headerContent, boolean skipStatusLine) throws Exception {
 
         String[] headers = headerContent.split("\\r?\\n");
 
@@ -60,9 +61,9 @@ public class HttpMessageHelper {
 
         String[] statusText = headers[0].split("\\s", 3);
 
-        Map<String,String> headerMap = new HashMap<>();
+        Map<String, String> headerMap = new HashMap<>();
 
-        if(!skipStatusLine) {
+        if (!skipStatusLine) {
             headerMap.put("method", statusText[0]);
             headerMap.put("path", statusText[1]);
             headerMap.put("httpVersion", statusText[2]);
@@ -79,7 +80,7 @@ public class HttpMessageHelper {
         return headerMap;
     }
 
-    public static String massageResponseToString(HttpResponseMessage responseMessage)  {
+    public static String massageResponseToString(HttpResponseMessage responseMessage) {
 
         StringBuilder responseBuilder = new StringBuilder(responseMessage.getHttpVersion()).append(" ");
 
@@ -87,14 +88,14 @@ public class HttpMessageHelper {
                 .append(responseMessage.getCode())
                 .append(" ")
                 .append(responseMessage.getStatusText())
-        .append("\n");
+                .append("\n");
 
         responseMessage.getHeaderMap().forEach((key, value) ->
                 responseBuilder.append(key).append(": ").append(value).append("\n"));
 
         responseBuilder.append("\n");
 
-        if(responseMessage.getContent()!= null) {
+        if (responseMessage.getContent() != null) {
             responseBuilder.append(responseMessage.getContent());
         }
 
@@ -102,22 +103,22 @@ public class HttpMessageHelper {
         return responseBuilder.toString();
     }
 
-    public static String headerToString(Map<String,String> headerMap) {
+    public static String headerToString(Map<String, String> headerMap) {
         return headerToString(headerMap, "");
     }
 
-    public static byte[] headerToBytes(Map<String,String> headerMap) {
+    public static byte[] headerToBytes(Map<String, String> headerMap) {
         return headerToBytes(headerMap, "");
     }
 
-    public static byte[] headerToBytes(Map<String,String> headerMap, String statusLine) {
+    public static byte[] headerToBytes(Map<String, String> headerMap, String statusLine) {
         return headerToString(headerMap, statusLine).getBytes();
     }
 
-    public static String headerToString(Map<String,String> headerMap, String statusLine) {
+    public static String headerToString(Map<String, String> headerMap, String statusLine) {
         StringBuilder headerBuilder = new StringBuilder(statusLine);
 
-        if(!statusLine.isEmpty()){
+        if (!statusLine.isEmpty()) {
             headerBuilder.append("\r\n");
         }
 

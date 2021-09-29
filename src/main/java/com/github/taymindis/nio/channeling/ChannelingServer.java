@@ -223,8 +223,10 @@ public class ChannelingServer implements AutoCloseable {
                     if (vHost == null) {
                         vHost = DEFAULT_VHOST_NAME;
                     }
-                    this.vHostRequestListener
-                            .getOrDefault(vHost, defaultRequestListener)
+                    // TODO uncomment this back later
+//                    this.vHostRequestListener
+//                            .getOrDefault(vHost, defaultRequestListener)
+                    defaultRequestListener
                             .handleRequest(request, new ResponseCallback() {
                                 private Deque<QueueWriteBuffer> buffQueue = new ArrayDeque<>();
 
