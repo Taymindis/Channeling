@@ -8,4 +8,5 @@ import java.nio.charset.Charset;
 public interface ResponseCallback {
     void write(HttpResponseMessage responseMessage, Charset charset, Then $then);
     void streamWrite(ByteBuffer byteBuffer, Then $then);
+//    void flush();
 }

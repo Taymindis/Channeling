@@ -12,7 +12,11 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.github.taymindis.nio.channeling.http.HttpMessageHelper.*;
@@ -222,6 +226,8 @@ public class ChannelingServer implements AutoCloseable {
                     this.vHostRequestListener
                             .getOrDefault(vHost, defaultRequestListener)
                             .handleRequest(request, new ResponseCallback() {
+                                private Deque<QueueWriteBuffer> buffQueue = new ArrayDeque<>();
+
                                 @Override
                                 public void write(HttpResponseMessage responseMessage, Charset charset, Then $then) {
                                     if(charset == null) {
@@ -231,7 +237,7 @@ public class ChannelingServer implements AutoCloseable {
                                         String responseMsg = massageResponseToString(responseMessage);
                                         ByteBuffer writeBuffer = ByteBuffer.wrap(responseMsg.getBytes(charset));
                                         socketRead.write(writeBuffer, socket-> {
-                                                    ChannelingServer.this.flush(socket, $then);
+                                                    this.flush(socket, $then);
                                                 },
                                                 ChannelingServer.this.onWriteError);
                                     } catch (Exception e) {
@@ -241,10 +247,46 @@ public class ChannelingServer implements AutoCloseable {
 
                                 @Override
                                 public void streamWrite(ByteBuffer b, Then $then) {
-                                    socketRead.write(b, socket-> {
-                                                ChannelingServer.this.flush(socket, $then);
-                                            },
-                                            ChannelingServer.this.onWriteError);
+                                    if ( queueForWrite(b, $then) != null) {
+                                        socketRead.write(b, socket -> {
+                                                    this.flush(socket, $then);
+                                                },
+                                                ChannelingServer.this.onWriteError);
+                                    }
+                                }
+
+                                private void flush(ChannelingSocket channelingSocket, Then callback) {
+                                     ByteBuffer currWriteBuff = channelingSocket.getCurrWritingBuffer();
+                                    if (currWriteBuff.hasRemaining()) {
+                                        socketRead.write(currWriteBuff, s -> this.flush(s, callback));
+                                    } else {
+                                        callback.callback(socketRead);
+                                        QueueWriteBuffer qwb;
+                                        if((qwb = queueForWrite(null, null)) != null) {
+                                            socketRead.write(qwb.getNb(), socket -> {
+                                                        this.flush(socket, qwb.get$then());
+                                                    },
+                                                    ChannelingServer.this.onWriteError);
+                                        }
+                                    }
+                                }
+                                private synchronized QueueWriteBuffer queueForWrite(ByteBuffer nb, Then $then) {
+                                    QueueWriteBuffer qwb;
+                                    if(nb == null) { // Means remove first one and take second one
+                                        buffQueue.poll();
+                                        if(buffQueue.isEmpty())
+                                            return null;
+                                        return buffQueue.peek();
+                                    } else {
+                                        qwb = new QueueWriteBuffer(nb, $then);
+                                        if(buffQueue.isEmpty()) {
+                                            buffQueue.offer(qwb);
+                                            return qwb;
+                                        } else {
+                                            buffQueue.offer(qwb);
+                                            return null;
+                                        }
+                                    }
                                 }
                             });
                 }
@@ -331,15 +373,6 @@ public class ChannelingServer implements AutoCloseable {
         return message;
 
 
-    }
-
-    public void flush(ChannelingSocket channelingSocket, Then callback) {
-        ByteBuffer currWriteBuff = channelingSocket.getCurrWritingBuffer();
-        if (currWriteBuff.hasRemaining()) {
-            channelingSocket.write(currWriteBuff, s -> this.flush(s, callback));
-        } else {
-            callback.callback(channelingSocket);
-        }
     }
 
     public Channeling getChanneling() {

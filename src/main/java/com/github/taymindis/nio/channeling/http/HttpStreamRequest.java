@@ -98,16 +98,19 @@ public class HttpStreamRequest implements HttpRequest {
                     extractResponseAndEncodingType(currBytes);
                     currProcessingStream.reset();
                     if (currBytes.length > bodyOffset) {
+                        // TODO check this part please, is this causing number format issue?
                         currProcessingStream.write(currBytes, bodyOffset, currBytes.length - bodyOffset);
                     }
                     streamChunked.header(reqHeaders, channelingSocket);
                     if (responseType == HttpResponseType.TRANSFER_CHUNKED) {
                         processChunked(currProcessingStream.toByteArray(), channelingSocket);
-                    } else {
+                    }
+                    // TODO Is it only support transfer_chunked ?
+                    else {
                         streamChunked.accept(currProcessingStream.toByteArray(), channelingSocket);
+                        currProcessingStream.reset();
                         eagerRead(channelingSocket, this::massageContentLengthBody);
                     }
-                    return;
                 }
             }
             eagerRead(channelingSocket, this::massageHeader);
@@ -156,6 +159,7 @@ public class HttpStreamRequest implements HttpRequest {
                     channelingSocket.close(this::closeAndThen);
                 } else {
                     streamChunked.accept(BytesHelper.subBytes(chunkBody, 0, currChunkLength - NEWLINE_BYTE_LENGTH), channelingSocket);
+                    currProcessingStream.reset();
                     chunked = BytesHelper.subBytes(chunkBody, currChunkLength, chunkBody.length);
                     int len = chunked.length;
                     if (len == 0) {
@@ -203,6 +207,7 @@ public class HttpStreamRequest implements HttpRequest {
                     channelingSocket.close(this::closeAndThen);
                 } else {
                     streamChunked.accept(BytesHelper.subBytes(chunkBody, 0, currChunkLength - NEWLINE_BYTE_LENGTH), channelingSocket);
+                    currProcessingStream.reset();
                     byte[] chunked = BytesHelper.subBytes(chunkBody, currChunkLength, chunkBody.length);
                     int len = chunked.length;
                     if (len == 0) {

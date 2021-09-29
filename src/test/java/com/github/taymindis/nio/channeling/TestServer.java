@@ -199,7 +199,7 @@ public class TestServer {
             // TODO Please do the next write after write and then, if not sure, follow transfer chunked mock result
             httpRequest.execute(new HttpStreamRequestCallback() {
                 @Override
-                public void header(String headersContent, ChannelingSocket socket, AfterWriteCallback callbackDoneWrite) throws Exception {
+                public void header(String headersContent, ChannelingSocket socket) throws Exception {
 //                    byte[] headerBytes =
 //                            String.format("HTTP/1.1 200 OK\r\n" +
 //                                    "Content-Type: text/html\r\n" +
@@ -215,14 +215,13 @@ public class TestServer {
                     byte[] headerBytes = HttpMessageHelper.headerToBytes(headerMap, "HTTP/1.1 200 OK");
                     callback.streamWrite(ByteBuffer.wrap(headerBytes), clientSocket -> {
                         // TODO Continue
-                        callbackDoneWrite(socket);
                     });
                 }
 
                 @Override
-                public void accept(byte[] chunked, ChannelingSocket socket, AfterWriteCallback callbackDoneWrite) {
+                public void accept(byte[] chunked, ChannelingSocket socket) {
                     try {
-                        System.out.println("nxxxxxt=" + new String(chunked));
+//                        System.out.println("nxxxxxt=" + new String(chunked));
                         callback.streamWrite(ByteBuffer.wrap(BytesHelper
                                 .concat(String.format("%s\r\n", HttpMessageHelper.intToHex(chunked.length)).getBytes(), chunked, "\r\n".getBytes())), clientSocket -> {
                         });
@@ -232,10 +231,10 @@ public class TestServer {
                 }
 
                 @Override
-                public void last(byte[] chunked, ChannelingSocket socket, AfterWriteCallback callbackDoneWrite) {
+                public void last(byte[] chunked, ChannelingSocket socket) {
 
                     try {
-                        System.out.println("lxxxxxt=" + new String(chunked));
+//                        System.out.println("lxxxxxt=" + new String(chunked));
 
                         callback.streamWrite(ByteBuffer.wrap(BytesHelper
                                 .concat(String.format(
@@ -287,8 +286,6 @@ public class TestServer {
             });
 
 
-        } catch (IOException | URISyntaxException e) {
-            e.printStackTrace();
         } catch (Exception e) {
             e.printStackTrace();
         }

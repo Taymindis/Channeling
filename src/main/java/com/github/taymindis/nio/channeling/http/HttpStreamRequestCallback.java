@@ -2,7 +2,6 @@ package com.github.taymindis.nio.channeling.http;
 
 import com.github.taymindis.nio.channeling.ChannelingSocket;
 
-import java.io.IOException;
 
 public interface HttpStreamRequestCallback {
     void header(String headersContent, ChannelingSocket socket) throws Exception;
