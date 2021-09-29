@@ -150,16 +150,17 @@ public class HttpStreamRequest implements HttpRequest {
         while (chunkBodies.length == 2) {
             currChunkLength = HttpMessageHelper.hexToInt(chunkBodies[0]) + NEWLINE_BYTE_LENGTH;
             byte[] chunkBody = chunkBodies[1].getBytes();
+            int chunkedBodyLen = chunkBody.length;
 
-            if (hasEnoughChunk(chunkBody, currChunkLength)) {
-                if (BytesHelper.equals(chunkBody, "\r\n0\r\n\r\n".getBytes(), chunkBody.length - 7)) {
+            if (hasEnoughChunk(chunkedBodyLen, currChunkLength)) {
+                if (BytesHelper.equals(chunkBody, "\r\n0\r\n\r\n".getBytes(), chunkedBodyLen - 7)) {
                     channelingSocket.noEagerRead();
                     streamChunked.last(chunkBody, channelingSocket);
                     channelingSocket.close(this::closeAndThen);
                 } else {
                     streamChunked.accept(BytesHelper.subBytes(chunkBody, 0, currChunkLength - NEWLINE_BYTE_LENGTH), channelingSocket);
                     currProcessingStream.reset();
-                    chunked = BytesHelper.subBytes(chunkBody, currChunkLength, chunkBody.length);
+                    chunked = BytesHelper.subBytes(chunkBody, currChunkLength, chunkedBodyLen);
                     int len = chunked.length;
                     if (len == 0) {
                         break;
@@ -329,6 +330,10 @@ public class HttpStreamRequest implements HttpRequest {
 
     private boolean hasEnoughChunk(byte[] chunkBody, int currChunkLength) {
         return chunkBody.length >= currChunkLength;
+    }
+
+    private boolean hasEnoughChunk(int chunkBodyLen, int currChunkLength) {
+        return chunkBodyLen >= currChunkLength;
     }
 
     public int getTotalRead() {

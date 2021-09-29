@@ -53,7 +53,7 @@ public class BytesHelper {
     }
 
     public static boolean equals(byte[] data, byte[] target, int startingPoint) {
-        if (target == null || data == null || (data.length - startingPoint) != target.length) {
+        if (startingPoint < 0 || target == null || data == null || (data.length - startingPoint) != target.length) {
             return false;
         }
 
