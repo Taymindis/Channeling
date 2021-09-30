@@ -13,7 +13,7 @@ public class HttpStreamRequest implements HttpRequest {
     private String messageToSend;
     private String host;
     private int port;
-    private ByteArrayOutputStream currProcessingStream;
+    private ChannellingBaos currProcessingStream;
     private ChannelingSocket socket;
     private HttpStreamRequestCallback streamChunked;
     private HttpResponseType responseType;
@@ -46,7 +46,7 @@ public class HttpStreamRequest implements HttpRequest {
                                 int minInputBufferSize,
                                 boolean enableGzipDecompression) {
         this.readBuffer = ByteBuffer.allocate(socket.isSSL() ? socket.getSSLMinimumInputBufferSize() : minInputBufferSize);
-        this.currProcessingStream = new ByteArrayOutputStream();
+        this.currProcessingStream = new ChannellingBaos();
         this.messageToSend = messageToSend;
         this.socket = socket;
         this.host = host;
@@ -93,7 +93,7 @@ public class HttpStreamRequest implements HttpRequest {
             }
 
             if (currProcessingStream.size() > 0) {
-                byte[] currBytes = currProcessingStream.toByteArray();
+                byte[] currBytes = currProcessingStream.getBuf();
                 if (tryFindingBodyOffset(currBytes)) {
                     extractResponseAndEncodingType(currBytes);
                     currProcessingStream.reset();
@@ -103,9 +103,9 @@ public class HttpStreamRequest implements HttpRequest {
                     }
                     streamChunked.header(reqHeaders, channelingSocket);
                     if (responseType == HttpResponseType.TRANSFER_CHUNKED) {
-                        processChunked(currProcessingStream.toByteArray(), channelingSocket);
+                        processChunked(currProcessingStream.dupBytes(), channelingSocket);
                     } else {
-                        streamChunked.accept(currProcessingStream.toByteArray(), channelingSocket);
+                        streamChunked.accept(currProcessingStream.dupBytes(), channelingSocket);
                         currProcessingStream.reset();
                         eagerRead(channelingSocket, this::massageContentLengthBody);
                     }
@@ -130,7 +130,7 @@ public class HttpStreamRequest implements HttpRequest {
                 readBuffer.get(b);
                 currConsumedBytes = b;
                 currProcessingStream.write(b);
-                processChunked(currProcessingStream.toByteArray(), channelingSocket);
+                processChunked(currProcessingStream.dupBytes(), channelingSocket);
             } else {
                 eagerRead(channelingSocket, this::massageChunkedBody);
             }
@@ -199,7 +199,7 @@ public class HttpStreamRequest implements HttpRequest {
                     return;
                 }
 
-                byte[] chunkBody = currProcessingStream.toByteArray();
+                byte[] chunkBody = currProcessingStream.dupBytes();
 
                 if (BytesHelper.equals(chunkBody, "\r\n0\r\n\r\n".getBytes(), chunkBody.length - 7)) {
                     channelingSocket.noEagerRead();
