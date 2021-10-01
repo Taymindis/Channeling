@@ -102,13 +102,26 @@ public class HttpStreamRequest implements HttpRequest {
                         currProcessingStream.write(currBytes, bodyOffset, currBytes.length - bodyOffset);
                     }
                     streamChunked.header(reqHeaders, channelingSocket);
-                    if (responseType == HttpResponseType.TRANSFER_CHUNKED) {
-                        processChunked(currProcessingStream.dupBytes(), channelingSocket);
-                    } else {
-                        streamChunked.accept(currProcessingStream.dupBytes(), channelingSocket);
-                        currProcessingStream.reset();
-                        eagerRead(channelingSocket, this::massageContentLengthBody);
+                    switch (responseType) {
+                        case TRANSFER_CHUNKED:
+                            processChunked(currProcessingStream.dupBytes(), channelingSocket);
+                            break;
+                        case CONTENT_LENGTH:
+                            if (totalRead >= requiredLength) {
+                                streamChunked.last(currProcessingStream.dupBytes(), channelingSocket);
+                                channelingSocket.close(this::closeAndThen);
+                                return;
+                            } else {
+                                streamChunked.accept(currProcessingStream.dupBytes(), channelingSocket);
+                                currProcessingStream.reset();
+                                eagerRead(channelingSocket, this::massageContentLengthBody);
+                            }
+                            break;
+                        case PENDING:
+                        case PARTIAL_CONTENT:
+                            break;
                     }
+
                     return;
                 }
             }

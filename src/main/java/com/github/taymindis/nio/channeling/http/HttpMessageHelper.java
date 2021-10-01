@@ -59,14 +59,15 @@ public class HttpMessageHelper {
             throw new Exception("Invalid Request content " + Arrays.toString(headers));
         }
 
-        String[] statusText = headers[0].split("\\s", 3);
+//        String[] statusText = headers[0].split("\\s", 3);
 
         Map<String, String> headerMap = new HashMap<>();
 
         if (!skipStatusLine) {
-            headerMap.put("method", statusText[0]);
-            headerMap.put("path", statusText[1]);
-            headerMap.put("httpVersion", statusText[2]);
+            headerMap.put("status", headers[0]);
+//            headerMap.put("httpVersion", statusText[0]);
+//            headerMap.put("code", statusText[1]);
+//            headerMap.put("status", statusText[2]);
         }
 
         for (int i = 1, size = headers.length; i < size; i++) {
