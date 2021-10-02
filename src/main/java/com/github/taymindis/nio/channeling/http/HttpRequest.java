@@ -1,10 +1,5 @@
 package com.github.taymindis.nio.channeling.http;
 
-import com.github.taymindis.nio.channeling.ChannelingSocket;
-
-import java.io.IOException;
-import java.util.function.Consumer;
-
 public interface HttpRequest {
 //    void connectAndThen(ChannelingSocket channelingSocket);
 //
@@ -16,7 +11,7 @@ public interface HttpRequest {
 
 //    void error(ChannelingSocket channelingSocket,Exception e);
 
-    void execute(HttpResponseCallback callback);
+    void execute(HttpSingleRequestCallback callback);
 
     void execute(HttpStreamRequestCallback callback);
 }

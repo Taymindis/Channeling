@@ -11,7 +11,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Consumer;
 
 public class HttpSingleRequest implements HttpRequest {
     private int totalRead = 0, totalWrite, requiredLength, bodyOffset;
@@ -21,7 +20,7 @@ public class HttpSingleRequest implements HttpRequest {
     private int port;
     private ByteArrayOutputStream response;
     private ChannelingSocket socket;
-    private HttpResponseCallback result;
+    private HttpSingleRequestCallback result;
     private int currChunkLength;
     private HttpResponseType responseType;
     private ContentEncodingType contentEncodingType;
@@ -75,7 +74,7 @@ public class HttpSingleRequest implements HttpRequest {
         this.prevRedirectionLoc = null;
     }
 
-    public void execute(HttpResponseCallback callback) {
+    public void execute(HttpSingleRequestCallback callback) {
         this.result = callback;
         socket.withConnect(host, port).when((WhenConnectingStatus) connectingStatus -> connectingStatus).then(this::connectAndThen, this::error);
     }

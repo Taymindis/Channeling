@@ -28,7 +28,7 @@ public class HttpMessageHelper {
 
         for (int i = 1, size = headers.length; i < size; i++) {
             String header = headers[i];
-            String[] keyPair = header.split(":\\s?");
+            String[] keyPair = header.split(":\\s?",2);
             String name = keyPair[0];
             String value = keyPair[1];
             headerMap.put(name, value);
@@ -72,7 +72,7 @@ public class HttpMessageHelper {
 
         for (int i = 1, size = headers.length; i < size; i++) {
             String header = headers[i];
-            String[] keyPair = header.split(":\\s?");
+            String[] keyPair = header.split(":\\s?",2);
             String name = keyPair[0];
             String value = keyPair[1];
             headerMap.put(name, value);

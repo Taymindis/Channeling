@@ -1,7 +1,7 @@
 package com.github.taymindis.nio.channeling;
 
 import com.github.taymindis.nio.channeling.http.HttpResponse;
-import com.github.taymindis.nio.channeling.http.HttpResponseCallback;
+import com.github.taymindis.nio.channeling.http.HttpSingleRequestCallback;
 import com.github.taymindis.nio.channeling.http.HttpSingleRequest;
 import org.junit.jupiter.api.*;
 import org.slf4j.Logger;
@@ -59,7 +59,7 @@ public class TestSSL {
                 cs.getSSLMinimumInputBufferSize(),false
         );
 
-        httpSingleRequest.execute(new HttpResponseCallback() {
+        httpSingleRequest.execute(new HttpSingleRequestCallback() {
             @Override
             public void accept(HttpResponse response, Object attachment) {
                 String result = response.getBodyContent();

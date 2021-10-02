@@ -1,7 +1,7 @@
 package com.github.taymindis.nio.channeling;
 
 import com.github.taymindis.nio.channeling.http.HttpResponse;
-import com.github.taymindis.nio.channeling.http.HttpResponseCallback;
+import com.github.taymindis.nio.channeling.http.HttpSingleRequestCallback;
 import com.github.taymindis.nio.channeling.http.HttpSingleRequest;
 import org.junit.jupiter.api.*;
 import org.slf4j.Logger;
@@ -51,7 +51,7 @@ public class TestProxySSL {
                         "Cookie: NID=210=zsJ4sKLPNL85W2JAWWs0wZbodLdnpQ2ddUDoHBQexjKYPQTC2or0prNFtplFahgeO16ygFejz4mPaczdjHZWQ-qiDwX4aw2A5FC-7zesz6olSqz2tvEom2YlaFWn7hNFebJ1_lgdheS4iPPhCGGVlZCjhUYhBaqvcZkfZpeW0zo; 1P_JAR=2021-02-26-06\n\n"
         );
 
-        httpSingleRequest.execute(new HttpResponseCallback() {
+        httpSingleRequest.execute(new HttpSingleRequestCallback() {
             @Override
             public void accept(HttpResponse response, Object attachment) {
 //            System.out.println("\""+result+"\"");

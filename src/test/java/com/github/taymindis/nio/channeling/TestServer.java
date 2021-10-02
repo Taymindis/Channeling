@@ -98,10 +98,9 @@ public class TestServer {
         AtomicInteger j = new AtomicInteger();
 
         List<String> proxiedTest = List.of(
-//                "http://mygab.crmxs.com/"
-//                ,"http://www.google.com/"
-//                ,"https://www.google.com.sg/"
-//                ,
+//                "http://mygab.crmxs.com/",
+//                "http://www.google.com/",
+//                "https://www.google.com.sg/",
                 "https://sg.yahoo.com/?p=us"
                 );
 
@@ -149,7 +148,7 @@ public class TestServer {
             );
             HttpResponseMessage res = new HttpResponseMessage();
 
-            httpRequest.execute(new HttpResponseCallback() {
+            httpRequest.execute(new HttpSingleRequestCallback() {
                 @Override
                 public void accept(HttpResponse httpResponse, Object attachment) {
                     res.setCode(httpResponse.getCode());
@@ -227,6 +226,7 @@ public class TestServer {
                     headerMap.put("Transfer-Encoding", "chunked");
                     headerMap.put("Proxy-By", CHANNELING_VERSION);
                     headerMap.remove("Content-Length");
+//                    headerMap.remove("Content-Encoding");
                     String statusLine = headerMap.getOrDefault("status", "HTTP/1.1 200 OK");
 
                     byte[] headerBytes = HttpMessageHelper.headerToBytes(headerMap, statusLine);
@@ -238,7 +238,7 @@ public class TestServer {
                 @Override
                 public void accept(byte[] chunked, ChannelingSocket socket) {
                     try {
-                        System.out.println("nxxxxxt=" + new String(chunked));
+//                        System.out.println("nxxxxxt=" + new String(chunked));
                         callback.streamWrite(ByteBuffer.wrap(BytesHelper
                                 .concat(String.format("%s\r\n", HttpMessageHelper.intToHex(chunked.length)).getBytes(), chunked, "\r\n".getBytes())), clientSocket -> {
                         });

@@ -66,7 +66,7 @@ public class TestHttpBuilder {
                 requestBuilder.toString(),
                 1024
         );
-        httpSingleRequest.execute(new HttpResponseCallback() {
+        httpSingleRequest.execute(new HttpSingleRequestCallback() {
             @Override
             public void accept(HttpResponse response, Object attachment) {
 //            System.out.println("\""+result+"\"");
@@ -121,7 +121,7 @@ public class TestHttpBuilder {
                 isSSL ? cs.getSSLMinimumInputBufferSize() : 1024
         );
 
-        httpSingleRequest.execute(new HttpResponseCallback() {
+        httpSingleRequest.execute(new HttpSingleRequestCallback() {
             @Override
             public void accept(HttpResponse response, Object attachment) {
 //            System.out.println("\""+result+"\"");
@@ -183,7 +183,7 @@ public class TestHttpBuilder {
                     return channeling.wrap(prevContext);
                 }
         );
-        httpSingleRequest.execute(new HttpResponseCallback() {
+        httpSingleRequest.execute(new HttpSingleRequestCallback() {
             @Override
             public void accept(HttpResponse response, Object attachment) {
 //            System.out.println("\""+result+"\"");

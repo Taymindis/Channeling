@@ -2,7 +2,6 @@ package com.github.taymindis.nio.channeling.http;
 
 import com.github.taymindis.nio.channeling.*;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -337,7 +336,7 @@ public class HttpStreamRequest implements HttpRequest {
     }
 
     @Override
-    public void execute(HttpResponseCallback result) {
+    public void execute(HttpSingleRequestCallback result) {
         throw new UnsupportedOperationException("Stream Request un-support HttpResponse");
     }
 

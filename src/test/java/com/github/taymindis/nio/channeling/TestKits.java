@@ -57,7 +57,7 @@ public class TestKits {
                 1024
         );
 
-        httpSingleRequest.execute(new HttpResponseCallback() {
+        httpSingleRequest.execute(new HttpSingleRequestCallback() {
             @Override
             public void accept(HttpResponse httpResponse, Object attachment) {
 //            System.out.println("\""+result+"\"");
@@ -152,7 +152,7 @@ public class TestKits {
                 cs.getSSLMinimumInputBufferSize(),false
         );
 
-        httpSingleRequest.execute(new HttpResponseCallback() {
+        httpSingleRequest.execute(new HttpSingleRequestCallback() {
             @Override
             public void accept(HttpResponse response, Object attachment) {
 //            System.out.println("\""+result+"\"");
