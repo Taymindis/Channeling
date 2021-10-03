@@ -221,13 +221,13 @@ public class HttpSingleRequest implements HttpRequest {
 
 
     private void transferEncodingResponse(ChannelingSocket channelingSocket) throws Exception {
-        byte[] consumedBuffers = response.getBuf();
+        byte[] consumedBuffers = response.dupBytes();
         int len = response.size();
 
 //        String last5Chars = new String(Arrays.copyOfRange(totalConsumedBytes, len - 5, len), StandardCharsets.UTF_8);
         if (len>=7 && BytesHelper.equals(consumedBuffers, "\r\n0\r\n\r\n".getBytes(), len - 7)) {
             channelingSocket.noEagerRead();
-            httpResponse.setRawBytes(response.dupBytes());
+            httpResponse.setRawBytes(consumedBuffers);
             httpResponse.setBodyOffset(bodyOffset);
             updateResponseType(httpResponse);
 
