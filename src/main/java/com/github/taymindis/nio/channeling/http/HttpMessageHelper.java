@@ -132,4 +132,20 @@ public class HttpMessageHelper {
         return headerBuilder.toString();
     }
 
+    public static String headerToString2(Map<String, Object> headerMap, String statusLine) {
+        StringBuilder headerBuilder = new StringBuilder(statusLine);
+
+        if (!statusLine.isEmpty()) {
+            headerBuilder.append("\r\n");
+        }
+
+        headerMap.forEach((key, value) ->
+                headerBuilder.append(key).append(": ").append(value).append("\r\n"));
+
+        headerBuilder.append("\r\n");
+
+
+        return headerBuilder.toString();
+    }
+
 }
