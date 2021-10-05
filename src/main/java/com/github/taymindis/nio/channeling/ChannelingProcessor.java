@@ -51,9 +51,9 @@ class ChannelingProcessor implements Runnable {
                     }
                 }
                 runIOTask();
-
-//                Thread.sleep(0, peekPerNano);
-
+                if(peekPerNano>0) {
+                    Thread.sleep(0, peekPerNano);
+                }
             } catch (Exception e) {
                 e.printStackTrace();
             }

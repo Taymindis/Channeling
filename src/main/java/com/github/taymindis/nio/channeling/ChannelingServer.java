@@ -15,8 +15,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Map;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.github.taymindis.nio.channeling.http.HttpMessageHelper.*;
@@ -35,7 +33,7 @@ public class ChannelingServer implements AutoCloseable {
     private Object attachment;
     private Map<String, RequestListener> vHostRequestListener;
     private RequestListener defaultRequestListener;
-    private boolean readBody = true;
+    private boolean readBody = true, keepAlive = false;
     private ErrorCallback onReadError, onWriteError, onAcceptError;
     private static final ErrorCallback ON_READ_ERROR = (sc, e) -> {
         e.printStackTrace();
@@ -49,6 +47,7 @@ public class ChannelingServer implements AutoCloseable {
         e.printStackTrace();
         sc.close(s->{});
     };
+    private int waitPerNano = -1;
 
 
     public ChannelingServer(Channeling channeling, String host, int port) throws Exception {
@@ -105,20 +104,30 @@ public class ChannelingServer implements AutoCloseable {
 //        peerNetData = ByteBuffer.allocate(dummySession.getPacketBufferSize());
 //        dummySession.invalidate();
 
-        if (isSSLServer) {
-            while (isActive) {
-                if (!waitForAccept.compareAndSet(false, true)) {
-                    continue;
+        try {
+            if (isSSLServer) {
+                while (isActive) {
+                    if (!waitForAccept.compareAndSet(false, true)) {
+                        if (waitPerNano > 0) {
+                            Thread.sleep(0, waitPerNano);
+                        }
+                        continue;
+                    }
+                    channelServerRunner.withAccept().then(this::sslSocketProcessor, onAcceptError);
                 }
-                channelServerRunner.withAccept().then(this::sslSocketProcessor, onAcceptError);
-            }
-        } else {
-            while (isActive) {
-                if (!waitForAccept.compareAndSet(false, true)) {
-                    continue;
+            } else {
+                while (isActive) {
+                    if (!waitForAccept.compareAndSet(false, true)) {
+                        if (waitPerNano > 0) {
+                            Thread.sleep(0, waitPerNano);
+                        }
+                        continue;
+                    }
+                    channelServerRunner.withAccept().then(this::socketProcessor, onAcceptError);
                 }
-                channelServerRunner.withAccept().then(this::socketProcessor, onAcceptError);
             }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
 
     }
@@ -133,6 +142,8 @@ public class ChannelingServer implements AutoCloseable {
 //
             ChannelingSocket acceptedSock =
                     channeling.wrap(socketChannel, attachment, buffSize);
+
+//            Channeling.KeepAlive(acceptedSock, isKeepAlive());
 
             acceptedSock.withEagerRead(buffSize)
                     .then(this::readAndThen, this.onReadError);
@@ -168,6 +179,7 @@ public class ChannelingServer implements AutoCloseable {
             ChannelingSocket acceptedSock =
                     channeling.wrapSSL(engine, attachment, buffSize, socketChannel);
 
+//            Channeling.KeepAlive(acceptedSock, isKeepAlive());
 
             acceptedSock.withEagerRead(acceptedSock.getSSLMinimumInputBufferSize())
                     .then(this::readAndThen, onReadError);
@@ -392,6 +404,14 @@ public class ChannelingServer implements AutoCloseable {
         this.readBody = readBody;
     }
 
+    public boolean isKeepAlive() {
+        return keepAlive;
+    }
+
+    public void setKeepAlive(boolean keepAlive) {
+        this.keepAlive = keepAlive;
+    }
+
     public int getBuffSize() {
         return buffSize;
     }
@@ -433,5 +453,13 @@ public class ChannelingServer implements AutoCloseable {
 
     public void setOnAcceptError(ErrorCallback onAcceptError) {
         this.onAcceptError = onAcceptError;
+    }
+
+    public int getWaitPerNano() {
+        return waitPerNano;
+    }
+
+    public void setWaitPerNano(int waitPerNano) {
+        this.waitPerNano = waitPerNano;
     }
 }

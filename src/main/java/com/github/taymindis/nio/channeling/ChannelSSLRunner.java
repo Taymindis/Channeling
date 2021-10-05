@@ -66,8 +66,8 @@ class ChannelSSLRunner extends AbstractChannelRunner {
 //        this.actionTime = 0;
         try {
             sc.configureBlocking(false);
-            sc.socket().setKeepAlive(false);
-            sc.setOption(StandardSocketOptions.SO_KEEPALIVE, false);
+//            sc.socket().setKeepAlive(false);
+//            sc.setOption(StandardSocketOptions.SO_KEEPALIVE, false);
         } catch (IOException e) {
             e.printStackTrace();
         }

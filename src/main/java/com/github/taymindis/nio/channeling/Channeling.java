@@ -5,6 +5,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.SocketException;
+import java.net.StandardSocketOptions;
 import java.nio.channels.SocketChannel;
 import java.security.KeyStore;
 import java.security.SecureRandom;
@@ -14,7 +16,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class Channeling {
-    private static final int DEFAULT_PEEK_TIME = 1;
+    private static final int DEFAULT_PEEK_TIME = -1;
     private final Queue<ChannelingSocket>[] channelQueues;
     private final Map<String, Integer> sslEnginesOrigin;
     private final ExecutorService eventRunner;
@@ -34,8 +36,8 @@ public class Channeling {
         return startNewChanneling(workers, DEFAULT_PEEK_TIME);
     }
 
-    public static Channeling startNewChanneling(int workers, int peekPerMs) throws IOException {
-        return startNewChanneling(workers, peekPerMs, 1500, 15000);
+    public static Channeling startNewChanneling(int workers, int peekPerNano) throws IOException {
+        return startNewChanneling(workers, peekPerNano, 1500, 15000);
     }
 
     public static Channeling startNewChanneling(int workers, long connectionTimeoutInMs, long readWriteTimeOutInMs) throws IOException {
@@ -58,6 +60,12 @@ public class Channeling {
     public static Channeling startNewChanneling(int workers, int peekPerNano, long connectionTimeoutInMs,
                                                 long readWriteTimeOutInMs, List<ChannelingPlugin> channelingPlugins) throws IOException {
         return new Channeling(workers, peekPerNano, connectionTimeoutInMs, readWriteTimeOutInMs, channelingPlugins);
+    }
+
+    public static void KeepAlive(ChannelingSocket cs, boolean trueOrFalse) throws IOException {
+        SocketChannel sc = cs.getSocketChannel();
+        sc.socket().setKeepAlive(trueOrFalse);
+        sc.setOption(StandardSocketOptions.SO_KEEPALIVE, trueOrFalse);
     }
 
     public void setNoEagerSocket(boolean noEagerSocket) {

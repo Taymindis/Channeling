@@ -50,8 +50,8 @@ class ChannelRunner extends AbstractChannelRunner {
 //        this.actionTime = 0;
         try {
             sc.configureBlocking(false);
-            sc.socket().setKeepAlive(true);
-            sc.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
+//            sc.socket().setKeepAlive(true);
+//            sc.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
         } catch (IOException e) {
             e.printStackTrace();
         }
