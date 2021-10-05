@@ -143,7 +143,7 @@ public class ChannelingServer implements AutoCloseable {
             ChannelingSocket acceptedSock =
                     channeling.wrap(socketChannel, attachment, buffSize);
 
-//            Channeling.KeepAlive(acceptedSock, isKeepAlive());
+            Channeling.KeepAlive(acceptedSock, isKeepAlive());
 
             acceptedSock.withEagerRead(buffSize)
                     .then(this::readAndThen, this.onReadError);
@@ -179,7 +179,7 @@ public class ChannelingServer implements AutoCloseable {
             ChannelingSocket acceptedSock =
                     channeling.wrapSSL(engine, attachment, buffSize, socketChannel);
 
-//            Channeling.KeepAlive(acceptedSock, isKeepAlive());
+            Channeling.KeepAlive(acceptedSock, isKeepAlive());
 
             acceptedSock.withEagerRead(acceptedSock.getSSLMinimumInputBufferSize())
                     .then(this::readAndThen, onReadError);

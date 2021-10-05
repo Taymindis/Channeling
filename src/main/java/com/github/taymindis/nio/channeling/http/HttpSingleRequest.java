@@ -131,8 +131,8 @@ public class HttpSingleRequest implements HttpRequest {
                 readBuffer.flip();
                 byte[] b = new byte[readBuffer.limit() - readBuffer.position()];
                 readBuffer.get(b);
-                extractResponseAndEncodingType(b);
                 response.write(b);
+                extractResponseAndEncodingType(response.getBuf());
                 readBuffer.clear();
                 channelingSocket.withEagerRead(readBuffer).then(this::readAndThen);
             } else if (totalRead == 0) {

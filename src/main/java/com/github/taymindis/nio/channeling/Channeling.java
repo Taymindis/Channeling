@@ -5,7 +5,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.SocketException;
 import java.net.StandardSocketOptions;
 import java.nio.channels.SocketChannel;
 import java.security.KeyStore;

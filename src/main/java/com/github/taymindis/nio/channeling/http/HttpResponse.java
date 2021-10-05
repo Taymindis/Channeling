@@ -220,8 +220,13 @@ public class HttpResponse {
 
             String[] statusText = keyValues[0].split("\\s", 3);
 
-            response.code = Integer.parseInt(statusText[1]);
-            response.statusText = statusText[2];
+            if(statusText.length == 3) {
+                response.code = Integer.parseInt(statusText[1]);
+                response.statusText = statusText[2];
+            } else {
+                response.code = 200;
+                response.statusText = "OK";
+            }
 
             for (int i = 1, size = keyValues.length; i < size; i++) {
                 String header = keyValues[i];
@@ -267,5 +272,9 @@ public class HttpResponse {
 
     public void setContentEncodingType(ContentEncodingType contentEncodingType) {
         this.contentEncodingType = contentEncodingType;
+    }
+
+    public ContentEncodingType getContentEncodingType() {
+        return contentEncodingType;
     }
 }

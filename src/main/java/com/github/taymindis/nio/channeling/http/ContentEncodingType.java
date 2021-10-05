@@ -1,6 +1,6 @@
 package com.github.taymindis.nio.channeling.http;
 
-enum ContentEncodingType {
+public enum ContentEncodingType {
     PENDING,
     GZIP,
     OTHER,
