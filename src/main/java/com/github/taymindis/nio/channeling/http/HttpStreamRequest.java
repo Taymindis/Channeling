@@ -17,7 +17,7 @@ public class HttpStreamRequest implements HttpRequest {
     private HttpStreamRequestCallback streamChunked;
     private HttpResponseType responseType;
     private ContentEncodingType contentEncodingType;
-    private byte[] currConsumedBytes;
+//    private byte[] currConsumedBytes;
     private boolean hasHeaderOut = false;
     private String reqHeaders = null;
     private static final int NEWLINE_BYTE_LENGTH = "\r\n".getBytes().length;
@@ -140,7 +140,7 @@ public class HttpStreamRequest implements HttpRequest {
                 readBuffer.flip();
                 byte[] b = new byte[readBuffer.limit() - readBuffer.position()];
                 readBuffer.get(b);
-                currConsumedBytes = b;
+//                currConsumedBytes = b;
                 currProcessingStream.write(b);
                 processChunked(currProcessingStream.dupBytes(), channelingSocket);
             } else {
@@ -204,7 +204,7 @@ public class HttpStreamRequest implements HttpRequest {
                 readBuffer.flip();
                 byte[] b = new byte[readBuffer.limit() - readBuffer.position()];
                 readBuffer.get(b);
-                currConsumedBytes = b;
+//                currConsumedBytes = b;
                 currProcessingStream.write(b);
                 if (currProcessingStream.size() < currChunkLength) {
                     eagerRead(channelingSocket, this::eagerChunkBodyLen);
