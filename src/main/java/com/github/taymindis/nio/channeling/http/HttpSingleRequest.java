@@ -4,12 +4,10 @@ import com.github.taymindis.nio.channeling.BytesHelper;
 import com.github.taymindis.nio.channeling.ChannelingSocket;
 import com.github.taymindis.nio.channeling.WhenConnectingStatus;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 
@@ -22,7 +20,6 @@ public class HttpSingleRequest implements HttpRequest {
     private ChannellingBaos response;
     private ChannelingSocket socket;
     private HttpSingleRequestCallback result;
-    private int currChunkLength;
     private HttpResponseType responseType;
     private ContentEncodingType contentEncodingType;
     private HttpResponse httpResponse;
