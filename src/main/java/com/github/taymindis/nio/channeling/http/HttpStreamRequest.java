@@ -23,6 +23,7 @@ public class HttpStreamRequest implements HttpRequest {
     private static final int NEWLINE_BYTE_LENGTH = "\r\n".getBytes().length;
 
     private final boolean enableGzipDecompression;
+    private byte[] previousChunked = new byte[0];
 
     public HttpStreamRequest(ChannelingSocket socket,
                              String host, int port,
@@ -158,41 +159,37 @@ public class HttpStreamRequest implements HttpRequest {
      * @throws IOException
      */
     private void processChunked(byte[] chunked, ChannelingSocket channelingSocket) throws IOException {
-        String[] chunkBodies = new String(chunked).split("\\r?\\n", 2);
-        while (chunkBodies.length == 2) {
-            currChunkLength = HttpMessageHelper.hexToInt(chunkBodies[0]) + NEWLINE_BYTE_LENGTH;
-            byte[] chunkBody = chunkBodies[1].getBytes();
-            int chunkedBodyLen = chunkBody.length;
+        int chunkLen = chunked.length;
+        if (isLastChunked(chunked, chunkLen)) {
+            channelingSocket.noEagerRead();
+            streamChunked.last(chunked, channelingSocket);
+            channelingSocket.close(this::closeAndThen);
+        } else {
+            previousChunked = chunked;
+            streamChunked.accept(chunked, channelingSocket);
+            currProcessingStream.reset();
+            eagerRead(channelingSocket, this::massageChunkedBody);
+        }
 
-            if (hasEnoughChunk(chunkedBodyLen, currChunkLength)) {
-                if (BytesHelper.equals(chunkBody, "\r\n0\r\n\r\n".getBytes(), chunkedBodyLen - 7)) {
-                    channelingSocket.noEagerRead();
-                    streamChunked.last(chunkBody, channelingSocket);
-                    channelingSocket.close(this::closeAndThen);
+    }
+
+    private boolean isLastChunked(byte[] chunked, int chunkLen) throws IOException {
+        if(chunkLen >= 7) {
+           return BytesHelper.equals(chunked, "\r\n0\r\n\r\n".getBytes(), chunkLen - 7);
+        } else {
+            int prevLen = previousChunked.length;
+            if (prevLen > 0) {
+
+                byte[] lastAttemptedChunk;
+                if (prevLen <= 7) {
+                    lastAttemptedChunk = BytesHelper.concat(previousChunked, chunked);
                 } else {
-                    streamChunked.accept(BytesHelper.subBytes(chunkBody, 0, currChunkLength - NEWLINE_BYTE_LENGTH), channelingSocket);
-                    currProcessingStream.reset();
-                    chunked = BytesHelper.subBytes(chunkBody, currChunkLength, chunkedBodyLen);
-                    int len = chunked.length;
-                    if (len == 0) {
-                        break;
-                    } else if (len >= 5 && BytesHelper.equals(chunked, "0\r\n\r\n".getBytes(), len - 5)) {
-                        channelingSocket.noEagerRead();
-                        streamChunked.last("".getBytes(), channelingSocket);
-                        channelingSocket.close(this::closeAndThen);
-                        return;
-                    } else {
-                        chunkBodies = new String(chunked).split("\\r?\\n", 2);
-                    }
+                    lastAttemptedChunk = BytesHelper.concat(BytesHelper.subBytes(previousChunked, prevLen-7), chunked);
                 }
-            } else {
-                currProcessingStream.reset();
-                currProcessingStream.write(chunkBody);
-                eagerRead(channelingSocket, this::eagerChunkBodyLen);
-                return;
+                return BytesHelper.equals(lastAttemptedChunk, "\r\n0\r\n\r\n".getBytes(), lastAttemptedChunk.length - 7);
             }
         }
-        eagerRead(channelingSocket, this::massageChunkedBody);
+        return false;
     }
 
     public void eagerChunkBodyLen(ChannelingSocket channelingSocket) {

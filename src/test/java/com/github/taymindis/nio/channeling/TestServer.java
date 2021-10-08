@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.*;
+import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,6 +30,16 @@ public class TestServer {
 
     AtomicInteger totalDone;
 
+    List<String> proxiedTest = List.of(
+//                "http://mygab.crmxs.com/"
+//                ,
+            "http://www.google.com/"
+            ,
+            "https://www.google.com.sg/"
+            ,
+            "https://sg.yahoo.com/?p=us"
+    );
+
     @BeforeEach
     public void beforeEach() throws Exception {
         totalDone = new AtomicInteger(0);
@@ -36,7 +47,7 @@ public class TestServer {
 
     @BeforeAll
     public static void beforeAll() throws IOException {
-        channeling = Channeling.startNewChanneling(1, 100 * 1000, 1000 * 1000);
+        channeling = Channeling.startNewChanneling(1, 1, 100 * 1000, 1000 * 1000);
         channeling.enableSSL(1);
     }
 
@@ -45,6 +56,7 @@ public class TestServer {
         ChannelingServer channelingServer = new ChannelingServer(channeling, "localhost", 8080);
 
         channelingServer.setBuffSize(1024);
+        channelingServer.setKeepAlive(true);
 
 
         TimeZone.setDefault(TimeZone.getTimeZone("Asia/Singapore"));
@@ -73,39 +85,11 @@ public class TestServer {
 
         TimeZone.setDefault(TimeZone.getTimeZone("Asia/Singapore"));
         dateFormat = new SimpleDateFormat("yyyyMMdd hh:mm:ss");
-
-        new Thread(() -> channelingServer.listen(this::proxyHandler)).start();
-
-        int tick = 1000;
-
-        while (tick-- > 0) {
-            Thread.sleep(999);
-            System.out.printf("tick %d\n", tick);
-        }
-
-        channelingServer.stop();
-    }
-
-    @Test
-    public void testProxyServerViaStreaming() throws Exception {
-        ChannelingServer channelingServer = new ChannelingServer(channeling, "localhost", 8080);
-
-        channelingServer.setBuffSize(1024);
-
-
-        TimeZone.setDefault(TimeZone.getTimeZone("Asia/Singapore"));
-        dateFormat = new SimpleDateFormat("yyyyMMdd hh:mm:ss");
         AtomicInteger j = new AtomicInteger();
 
-        List<String> proxiedTest = List.of(
-//                "http://mygab.crmxs.com/",
-//                "http://www.google.com/",
-//                "https://www.google.com.sg/",
-                "https://sg.yahoo.com/?p=us"
-                );
 
         new Thread(() -> channelingServer.listen((requestMessage, callback) -> {
-             this.proxyStreamHandler(requestMessage, callback, proxiedTest.get(j.getAndIncrement()%proxiedTest.size()));
+            this.proxyHandler(requestMessage, callback, proxiedTest.get(j.getAndIncrement() % proxiedTest.size()));
         })).start();
 
         int tick = 1000;
@@ -118,26 +102,54 @@ public class TestServer {
         channelingServer.stop();
     }
 
-    private void proxyHandler(HttpRequestMessage requestMessage, ResponseCallback callback) {
+    @Test
+    public void testProxyServerViaStreaming() throws Exception {
+        ChannelingServer channelingServer = new ChannelingServer(channeling, "localhost", 8080);
+
+        channelingServer.setBuffSize(1024);
+        channelingServer.setWaitPerNano(1);
+
+
+        TimeZone.setDefault(TimeZone.getTimeZone("Asia/Singapore"));
+        dateFormat = new SimpleDateFormat("yyyyMMdd hh:mm:ss");
+        AtomicInteger j = new AtomicInteger();
+
+        new Thread(() -> channelingServer.listen((requestMessage, callback) -> {
+            this.proxyStreamHandler(requestMessage, callback, proxiedTest.get(j.getAndIncrement() % proxiedTest.size()));
+        })).start();
+
+        int tick = 1000;
+
+        while (tick-- > 0) {
+            Thread.sleep(999);
+//            System.out.printf("tick %d\n", tick);
+        }
+
+        channelingServer.stop();
+    }
+
+    private void proxyHandler(HttpRequestMessage requestMessage, ResponseCallback callback, String proxyTo) {
         try {
 
-            URI uri = new URI("https://www.google.com.sg/");
+            URI uri = new URI(proxyTo);
             String host = uri.getHost();
             boolean isSSL = uri.getScheme().startsWith("https");
+            String path = uri.getPath();
+            String args = uri.getQuery();
 
             int port = uri.getPort();
 
             if (port < 0) {
                 port = isSSL ? 443 : 80;
             }
-            ChannelingSocket cs = channeling.wrapSSL("TLSv1.2", host, port, null);
+            ChannelingSocket cs = isSSL ? channeling.wrapSSL("TLSv1.2", host, port, null) : channeling.wrap(null);
 
             HttpRequestBuilder requestBuilder = new HttpRequestBuilder();
 
             requestBuilder.setMethod("GET");
-            requestBuilder.addHeader("Host", String.format("%s:%d", host, port));
-            requestBuilder.setPath("/");
-
+            requestBuilder.addHeader("Host", host);
+            requestBuilder.setPath(path);
+            requestBuilder.setArgs(args);
 
             HttpRequest httpRequest = new HttpSingleRequest(
                     cs,
@@ -154,14 +166,25 @@ public class TestServer {
                     res.setCode(httpResponse.getCode());
                     res.setStatusText(httpResponse.getStatusText());
                     res.setContent(httpResponse.getBodyContent());
-                    res.addHeader("Content-Type", httpResponse.getHeader("Content-Type"));
+
+                    Map<String, String> responHeaders = httpResponse.getHeaderAsMap();
 
                     String content = (String) res.getContent();
 
+                    if (responHeaders.containsKey("Content-Encoding")) {
+                        responHeaders.remove("Content-Encoding");
+                    } else {
+//                        System.out.println("asd");
+
+                    }
+
+                    responHeaders.remove("Content-Length");
+                    responHeaders.remove("Transfer-Encoding");
+                    res.addHeader(responHeaders);
+                    res.addHeader("Content-Length", String.valueOf(content.getBytes().length));
                     res.addHeader("Date", dateFormat.format(new Date()));
-                    res.addHeader("Server", CHANNELING_VERSION);
-                    res.addHeader("Content-Length", String.valueOf(content.length() + 2));
-                    res.addHeader("Content-Type", "text/html");
+                    res.addHeader("Proxy-Server", CHANNELING_VERSION);
+
 
                     callback.write(res, null, TestServer.this::close);
 
@@ -169,7 +192,12 @@ public class TestServer {
 
                 @Override
                 public void error(Exception e, ChannelingSocket socket) {
-                    Assertions.fail(e.getMessage(), e);
+                    requestMessage.getClientSocket().close(sc -> {
+                    });
+                    socket.close(sc -> {
+                    });
+//                    Assertions.fail(e.getMessage(), e);
+                    e.printStackTrace();
                 }
             });
 
@@ -200,7 +228,7 @@ public class TestServer {
             requestBuilder.addHeader("Host", String.format("%s", host));
             requestBuilder.setPath(path);
             requestBuilder.setArgs(args);
-
+            AtomicInteger loading = new AtomicInteger(0);
 
             HttpRequest httpRequest = new HttpStreamRequest(
                     cs,
@@ -212,6 +240,11 @@ public class TestServer {
 
             // TODO Please do the next write after write and then, if not sure, follow transfer chunked mock result
             httpRequest.execute(new HttpStreamRequestCallback() {
+
+                private HttpStreamResponseHandler responseHandler;
+                private int nextChunkedLen = -1, accLen = 0;
+                private Deque<byte[]> chunkQueue = new ArrayDeque<>();
+
                 @Override
                 public void header(String headersContent, ChannelingSocket socket) throws Exception {
 //                    byte[] headerBytes =
@@ -223,13 +256,24 @@ public class TestServer {
 
                     Map<String, String> headerMap = HttpMessageHelper.massageHeaderContentToHeaderMap(headersContent, false);
 
-                    headerMap.put("Transfer-Encoding", "chunked");
                     headerMap.put("Proxy-By", CHANNELING_VERSION);
-                    headerMap.remove("Content-Length");
-//                    headerMap.remove("Content-Encoding");
-                    String statusLine = headerMap.getOrDefault("status", "HTTP/1.1 200 OK");
 
+//                    if (headerMap.containsKey("Content-Encoding")) {
+//                        headerMap.put("Transfer-Encoding", "chunked");
+//                        headerMap.remove("Content-Length");
+//                        responseHandler = new DefaultTransferEncodingStreamResponseHandler(callback);
+//                    } else if (headerMap.containsKey("Content-Length")) {
+//                        responseHandler = new DefaultContentLengthStreamResponseHandler(callback);
+//                    } else if (headerMap.containsKey("Transfer-Encoding")) {
+//                        responseHandler = new DefaultTransferEncodingStreamResponseHandler(callback);
+//                    } else {
+//                        throw new IllegalStateException("Response Type is not support");
+//                    }
+
+                    String statusLine = headerMap.getOrDefault("status", "HTTP/1.1 200 OK");
+//                    System.out.println(HttpMessageHelper.headerToString(headerMap, statusLine));
                     byte[] headerBytes = HttpMessageHelper.headerToBytes(headerMap, statusLine);
+//                    debugStream.write(headerBytes);
                     callback.streamWrite(ByteBuffer.wrap(headerBytes), clientSocket -> {
                         // TODO Continue
                     });
@@ -238,11 +282,42 @@ public class TestServer {
                 @Override
                 public void accept(byte[] chunked, ChannelingSocket socket) {
                     try {
-//                        System.out.println("nxxxxxt=" + new String(chunked));
-                        callback.streamWrite(ByteBuffer.wrap(BytesHelper
-                                .concat(String.format("%s\r\n", HttpMessageHelper.intToHex(chunked.length)).getBytes(), chunked, "\r\n".getBytes())), clientSocket -> {
+//                        System.out.println(new String(chunked));
+//                        System.out.println(loading.incrementAndGet());
+//                        debugStream.write(chunked);
+//                        if (nextChunkedLen == -1) {
+//                            String[] lenAndBody = new String(chunked).split("\\r?\\n", 2);
+//                            String hex = lenAndBody[0];
+//                            nextChunkedLen = HttpMessageHelper.hexToInt(hex) + 2;
+//                            chunked = lenAndBody[1].getBytes();
+//                        }
+//                        if ((accLen + chunked.length) >= nextChunkedLen) {
+//                            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+//                            int lastLenOfTheChunk = nextChunkedLen - accLen;
+//                            byte[] streamChunk, lastBufferOfTheChunk = BytesHelper.subBytes(chunked, 0, lastLenOfTheChunk - 2);
+//
+//                            while ((streamChunk = chunkQueue.poll()) != null) {
+//                                outputStream.write(streamChunk);
+//                            }
+//                            outputStream.write(lastBufferOfTheChunk);
+//                            responseHandler.accept(outputStream.toByteArray(), socket);
+//                            byte[] carrForwardedChunk = BytesHelper.subBytes(chunked, lastLenOfTheChunk);
+//                            accLen = carrForwardedChunk.length;
+//
+//                            String[] lenAndBody = new String(carrForwardedChunk).split("\\r?\\n", 2);
+//                            nextChunkedLen = HttpMessageHelper.hexToInt(lenAndBody[0]) + 2;
+//                            chunkQueue.add(lenAndBody[1].getBytes());
+//                        } else {
+//                            chunkQueue.add(chunked);
+//                            accLen += chunked.length;
+////                            responseHandler.accept(BytesHelper.subBytes(chunked, 0, nextChunkedLen - (accLen-chunked.length)), socket);
+//                        }
+
+                        callback.streamWrite(ByteBuffer.wrap(chunked), clientSocket -> {
+                            // TODO Continue
                         });
-                    } catch (IOException e) {
+
+                    } catch (Exception e) {
                         e.printStackTrace();
                     }
                 }
@@ -251,29 +326,19 @@ public class TestServer {
                 public void last(byte[] chunked, ChannelingSocket socket) {
 
                     try {
+//                        debugStream.write(chunked);
+//                        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+//                        byte[] streamChunk;
+//                        while ((streamChunk = chunkQueue.poll()) != null) {
+//                            outputStream.write(streamChunk);
+//                        }
+//                        outputStream.write(chunked);
+//
+//                        responseHandler.last(outputStream.toByteArray(), socket);
+                        callback.streamWrite(ByteBuffer.wrap(chunked), TestServer.this::close);
+
 //                        System.out.println("lxxxxxt=" + new String(chunked));
 
-                        if(chunked.length == 0){
-                            callback.streamWrite(ByteBuffer.wrap("0\r\n\r\n".getBytes()), clientSocket -> {
-                                close(clientSocket);
-                            });
-                        }  else {
-                            if(BytesHelper.equals(chunked, "\r\n0\r\n\r\n".getBytes(),chunked.length - 7 )) {
-                                callback.streamWrite(ByteBuffer.wrap(BytesHelper
-                                        .concat(String.format(
-                                                "%s\r\n", HttpMessageHelper.intToHex(chunked.length - 7)).getBytes(),
-                                                chunked)), clientSocket -> {
-                                    close(clientSocket);
-                                });
-                            } else {
-                                callback.streamWrite(ByteBuffer.wrap(BytesHelper
-                                        .concat(String.format(
-                                                "%s\r\n", HttpMessageHelper.intToHex(chunked.length)).getBytes(),
-                                                chunked, "\r\n0\r\n\r\n".getBytes())), clientSocket -> {
-                                    close(clientSocket);
-                                });
-                            }
-                        }
 
 //                        String closingChunked;
 //                        int clen = chunked.length;
@@ -303,7 +368,7 @@ public class TestServer {
 //                        }
 //
 //
-                    } catch (IOException e) {
+                    } catch (Exception e) {
                         e.printStackTrace();
                     }
                 }
@@ -325,46 +390,6 @@ public class TestServer {
         }
     }
 
-
-    private void transferChunkedMockResponse(HttpRequestMessage requestMessage, ResponseCallback callback) {
-        try {
-            callback.streamWrite(ByteBuffer.wrap(ConstantTestBytes.HEADERSBYTE.getBytes()),
-                    channelingSocket -> {
-                        processNextBytes(ConstantTestBytes.NEXT1.getBytes(), callback, false);
-                    });
-        } catch (Exception e) {
-
-        }
-    }
-
-    private void processNextBytes(byte[] chunked, ResponseCallback callback, boolean isLast) {
-        try {
-            callback.streamWrite(ByteBuffer.wrap(BytesHelper
-                    .concat(String.format(
-                            "%s\r\n", HttpMessageHelper.intToHex(chunked.length)).getBytes(),
-                            chunked, "\r\n".getBytes())), clientSocket -> {
-                if (isLast) {
-                    last(ConstantTestBytes.LAST.getBytes(), callback);
-                } else {
-                    processNextBytes(ConstantTestBytes.NEXT2.getBytes(), callback, true);
-                }
-            });
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void last(byte[] chunked, ResponseCallback callback) {
-        try {
-            callback.streamWrite(ByteBuffer.wrap(BytesHelper
-                    .concat(String.format(
-                            "%s\r\n", HttpMessageHelper.intToHex(chunked.length)).getBytes(),
-                            chunked,
-                            "\r\n0\r\n\r\n".getBytes())), this::close);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 
     private void close(ChannelingSocket socket) {
         socket.close(s -> {

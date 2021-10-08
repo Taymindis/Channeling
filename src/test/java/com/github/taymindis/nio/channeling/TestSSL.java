@@ -36,9 +36,9 @@ public class TestSSL {
     public void testSSL() throws Exception {
 //         System.setProperty("javax.net.debug", "all");
 //        System.setProperty("jdk.tls.client.protocols", "TLSv1.2");
+        String targetHost = "www.google.com.sg";
         CountDownLatch countDownLatch = new CountDownLatch(1);
-        ChannelingSocket cs = channeling.wrapSSL("TLSv1.2", "mycamel.abcfoo.com", 443, null);
-        String host = "mycamel.abcfoo.com";
+        ChannelingSocket cs = channeling.wrapSSL("TLSv1.2", targetHost, 443, null);
         /** DO NOT USE RAW STRING, use HttpRequestBuilder instead **/
         /** DO NOT USE RAW STRING, use HttpRequestBuilder instead **/
         /** DO NOT USE RAW STRING, use HttpRequestBuilder instead **/
@@ -51,10 +51,10 @@ public class TestSSL {
         /** Please check the test case TestHttpBuilder **/
         HttpSingleRequest httpSingleRequest = new HttpSingleRequest(
                 cs,
-                host,
+                targetHost,
                 443,
                 "GET / HTTP/1.1\n" +
-                        "Host: "+host+"\n\n",
+                        "Host: "+targetHost+"\n\n",
 //                "Connection: close\n" + // Do not close
                 cs.getSSLMinimumInputBufferSize(),false
         );
