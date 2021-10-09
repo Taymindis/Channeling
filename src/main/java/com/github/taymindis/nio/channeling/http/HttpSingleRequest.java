@@ -18,7 +18,7 @@ public class HttpSingleRequest implements HttpRequest {
     private String messageToSend;
     private String host;
     private int port;
-    private ChannellingBaos response;
+    private ByteArrayOutputStream response;
     private ChannelingSocket socket;
     private HttpSingleRequestCallback result;
     private HttpResponseType responseType;
@@ -60,7 +60,7 @@ public class HttpSingleRequest implements HttpRequest {
                                 boolean enableGzipDecompression,
                                 RedirectionSocket redirectionSocket) {
         this.readBuffer = ByteBuffer.allocate(socket.isSSL() ? socket.getSSLMinimumInputBufferSize() : minInputBufferSize);
-        this.response = new ChannellingBaos();
+        this.response = new ByteArrayOutputStream();
         this.messageToSend = messageToSend;
         this.socket = socket;
         this.host = host;
@@ -130,7 +130,7 @@ public class HttpSingleRequest implements HttpRequest {
                 byte[] b = new byte[readBuffer.limit() - readBuffer.position()];
                 readBuffer.get(b);
                 response.write(b);
-                extractResponseAndEncodingType(response.getBuf());
+                extractResponseAndEncodingType(response.toByteArray());
                 readBuffer.clear();
                 channelingSocket.withEagerRead(readBuffer).then(this::readAndThen);
             } else if (totalRead == 0) {
@@ -139,7 +139,7 @@ public class HttpSingleRequest implements HttpRequest {
                 eagerRead(channelingSocket);
             } else {
                 if (bodyOffset == -1) {
-                    extraBodyOffsetOnly(response.getBuf());
+                    extraBodyOffsetOnly(response.toByteArray());
                 }
                 switch (responseType) {
                     case PENDING:
@@ -218,7 +218,7 @@ public class HttpSingleRequest implements HttpRequest {
     }
 
     private void transferEncodingResponse(ChannelingSocket channelingSocket) throws Exception {
-        byte[] consumedBuffers = response.dupBytes();
+        byte[] consumedBuffers = response.toByteArray();
         int len = response.size();
 
 //        String last5Chars = new String(Arrays.copyOfRange(totalConsumedBytes, len - 5, len), StandardCharsets.UTF_8);
@@ -252,7 +252,7 @@ public class HttpSingleRequest implements HttpRequest {
 //        int len = response.size();
 //
 //        if (len >= 7) {
-//            byte[] buffer = response.getBuf();
+//            byte[] buffer = response.toByteArray();
 //            byte[] last7Bytes = BytesHelper.subBytes(buffer, len-7, len);
 ////        String last5Chars = new String(Arrays.copyOfRange(totalConsumedBytes, len - 5, len), StandardCharsets.UTF_8);
 //            if (BytesHelper.equals(last7Bytes, "\r\n0\r\n\r\n".getBytes())) {
@@ -316,7 +316,7 @@ public class HttpSingleRequest implements HttpRequest {
             this.readBuffer.clear();
         }
         this.response.close();
-        this.response = new ChannellingBaos();
+        this.response = new ByteArrayOutputStream();
         this.responseType = HttpResponseType.PENDING;
         this.contentEncodingType = ContentEncodingType.PENDING;
         this.bodyOffset = -1;
@@ -342,7 +342,7 @@ public class HttpSingleRequest implements HttpRequest {
     private void contentLengthResponse(ChannelingSocket channelingSocket) throws Exception {
         if (totalRead >= requiredLength) {
             channelingSocket.noEagerRead();
-            httpResponse.setRawBytes(response.dupBytes());
+            httpResponse.setRawBytes(response.toByteArray());
             httpResponse.setBodyOffset(bodyOffset);
             updateResponseType(httpResponse);
 

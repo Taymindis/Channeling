@@ -15,6 +15,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
 
+import static com.github.taymindis.nio.channeling.http.HttpMessageHelper.decompress;
+
 public class HttpResponse {
     private static Logger log = LoggerFactory.getLogger(HttpResponse.class);
     private String headers;
@@ -236,38 +238,6 @@ public class HttpResponse {
             response.headerMap = headerMap;
         }
 
-    }
-
-    public static boolean isCompressed(final byte[] compressed) {
-        return (compressed[0] == (byte) (GZIPInputStream.GZIP_MAGIC)) && (compressed[1] == (byte) (GZIPInputStream.GZIP_MAGIC >> 8));
-    }
-
-    public static String decompress(final byte[] compressed, Charset charset) throws IOException {
-        final StringBuilder outStr = new StringBuilder();
-        final CharBuffer outputBuffer = CharBuffer.allocate(1024);
-        outputBuffer.clear();
-        if ((compressed == null) || (compressed.length == 0)) {
-            return "";
-        }
-
-        if (isCompressed(compressed)) {
-            try (final GZIPInputStream gis = new GZIPInputStream(new ByteArrayInputStream(compressed));
-                 final InputStreamReader inputStreamReader = new InputStreamReader(gis, charset)
-            ) {
-                while (inputStreamReader.read(outputBuffer) > 0) {
-                    outputBuffer.flip();
-                    char[] ca = new char[outputBuffer.limit() - outputBuffer.position()];
-                    outputBuffer.get(ca);
-                    outStr.append(ca);
-                    if (!outputBuffer.hasRemaining()) {
-                        outputBuffer.clear();
-                    }
-                }
-            }
-        } else {
-            outStr.append(Arrays.toString(compressed));
-        }
-        return outStr.toString();
     }
 
     public void setContentEncodingType(ContentEncodingType contentEncodingType) {

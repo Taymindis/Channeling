@@ -33,10 +33,10 @@ public class TestServer {
     List<String> proxiedTest = List.of(
 //                "http://mygab.crmxs.com/"
 //                ,
-            "http://www.google.com/"
+            "http://localhost/"
             ,
-            "https://www.google.com.sg/"
-            ,
+//            "https://www.google.com.sg/"
+//            ,
             "https://sg.yahoo.com/?p=us"
     );
 
@@ -47,8 +47,8 @@ public class TestServer {
 
     @BeforeAll
     public static void beforeAll() throws IOException {
-        channeling = Channeling.startNewChanneling(1, 1, 100 * 1000, 1000 * 1000);
-        channeling.enableSSL(1);
+        channeling = Channeling.startNewChanneling(4, 1, 100 * 1000, 1000 * 1000);
+        channeling.enableSSL(2);
     }
 
     @Test
@@ -241,9 +241,9 @@ public class TestServer {
             // TODO Please do the next write after write and then, if not sure, follow transfer chunked mock result
             httpRequest.execute(new HttpStreamRequestCallback() {
 
-                private HttpStreamResponseHandler responseHandler;
-                private int nextChunkedLen = -1, accLen = 0;
-                private Deque<byte[]> chunkQueue = new ArrayDeque<>();
+//                private HttpStreamResponseHandler responseHandler;
+//                private int nextChunkedLen = -1, accLen = 0;
+//                private Deque<byte[]> chunkQueue = new ArrayDeque<>();
 
                 @Override
                 public void header(String headersContent, ChannelingSocket socket) throws Exception {
@@ -254,9 +254,14 @@ public class TestServer {
 //                                    "%d\r\n", chunked.length)
 //                                    .getBytes();
 
-                    Map<String, String> headerMap = HttpMessageHelper.massageHeaderContentToHeaderMap(headersContent, false);
+                    if(false) {
+                        Map<String, String> headerMap = HttpMessageHelper.massageHeaderContentToHeaderMap(headersContent, false);
 
-                    headerMap.put("Proxy-By", CHANNELING_VERSION);
+                        headerMap.put("Proxy-By", CHANNELING_VERSION);
+
+//                    if (headerMap.get("server").contains("yahoo.com")) {
+//                        System.out.println(headersContent);
+//                    }
 
 //                    if (headerMap.containsKey("Content-Encoding")) {
 //                        headerMap.put("Transfer-Encoding", "chunked");
@@ -270,11 +275,11 @@ public class TestServer {
 //                        throw new IllegalStateException("Response Type is not support");
 //                    }
 
-                    String statusLine = headerMap.getOrDefault("status", "HTTP/1.1 200 OK");
+                        String statusLine = headerMap.getOrDefault("status", "HTTP/1.1 200 OK");
 //                    System.out.println(HttpMessageHelper.headerToString(headerMap, statusLine));
-                    byte[] headerBytes = HttpMessageHelper.headerToBytes(headerMap, statusLine);
+                        byte[] headerBytes = HttpMessageHelper.headerToBytes(headerMap, statusLine);
 //                    debugStream.write(headerBytes);
-                    callback.streamWrite(ByteBuffer.wrap(headerBytes), clientSocket -> {
+                    } callback.streamWrite(ByteBuffer.wrap(headersContent.getBytes()), clientSocket -> {
                         // TODO Continue
                     });
                 }

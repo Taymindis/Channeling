@@ -1,9 +1,15 @@
 package com.github.taymindis.nio.channeling.http;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.CharBuffer;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.zip.GZIPInputStream;
 
 public class HttpMessageHelper {
     public static String parseToString(byte[] consumedBytes) {
@@ -146,6 +152,38 @@ public class HttpMessageHelper {
 
 
         return headerBuilder.toString();
+    }
+
+    public static boolean isCompressed(final byte[] compressed) {
+        return (compressed[0] == (byte) (GZIPInputStream.GZIP_MAGIC)) && (compressed[1] == (byte) (GZIPInputStream.GZIP_MAGIC >> 8));
+    }
+
+    public static String decompress(final byte[] compressed, Charset charset) throws IOException {
+        final StringBuilder outStr = new StringBuilder();
+        final CharBuffer outputBuffer = CharBuffer.allocate(1024);
+        outputBuffer.clear();
+        if ((compressed == null) || (compressed.length == 0)) {
+            return "";
+        }
+
+        if (isCompressed(compressed)) {
+            try (final GZIPInputStream gis = new GZIPInputStream(new ByteArrayInputStream(compressed));
+                 final InputStreamReader inputStreamReader = new InputStreamReader(gis, charset)
+            ) {
+                while (inputStreamReader.read(outputBuffer) > 0) {
+                    outputBuffer.flip();
+                    char[] ca = new char[outputBuffer.limit() - outputBuffer.position()];
+                    outputBuffer.get(ca);
+                    outStr.append(ca);
+                    if (!outputBuffer.hasRemaining()) {
+                        outputBuffer.clear();
+                    }
+                }
+            }
+        } else {
+            outStr.append(Arrays.toString(compressed));
+        }
+        return outStr.toString();
     }
 
 }
