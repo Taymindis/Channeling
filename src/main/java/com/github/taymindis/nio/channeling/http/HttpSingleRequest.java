@@ -4,6 +4,7 @@ import com.github.taymindis.nio.channeling.BytesHelper;
 import com.github.taymindis.nio.channeling.ChannelingSocket;
 import com.github.taymindis.nio.channeling.WhenConnectingStatus;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -216,7 +217,6 @@ public class HttpSingleRequest implements HttpRequest {
         }
     }
 
-
     private void transferEncodingResponse(ChannelingSocket channelingSocket) throws Exception {
         byte[] consumedBuffers = response.dupBytes();
         int len = response.size();
@@ -246,6 +246,57 @@ public class HttpSingleRequest implements HttpRequest {
             eagerRead(channelingSocket);
         }
     }
+
+//  This is to strips all the chunked len metrics and make it to real content
+//    private void transferEncodingResponse(ChannelingSocket channelingSocket) throws Exception {
+//        int len = response.size();
+//
+//        if (len >= 7) {
+//            byte[] buffer = response.getBuf();
+//            byte[] last7Bytes = BytesHelper.subBytes(buffer, len-7, len);
+////        String last5Chars = new String(Arrays.copyOfRange(totalConsumedBytes, len - 5, len), StandardCharsets.UTF_8);
+//            if (BytesHelper.equals(last7Bytes, "\r\n0\r\n\r\n".getBytes())) {
+//                channelingSocket.noEagerRead();
+//                ByteArrayOutputStream respStream = new ByteArrayOutputStream();
+//                int i=bodyOffset+1;
+//                int nextOffSet = bodyOffset;
+//                for(;i<len-1;i++) {
+//                    if(buffer[i]=='\r' && buffer[i+1] == '\n') {
+//                        String hex = new String(BytesHelper.subBytes(buffer, nextOffSet, i));
+//                        int chunklen = HttpMessageHelper.hexToInt(hex);
+//                        if(chunklen == 0){
+//                            break;
+//                        }
+//                        respStream.write(buffer, i+2, chunklen);
+//                        nextOffSet = i = i + 2 + chunklen + 2;
+//                    }
+//                }
+//
+//                httpResponse.setRawBytes(respStream.toByteArray());
+//                httpResponse.setBodyOffset(bodyOffset);
+//                updateResponseType(httpResponse);
+//
+//                if (redirectionSocket != null) {
+//                    Map<String, String> headers = httpResponse.getHeaderAsMap();
+//                    if (headers.containsKey("Location")) {
+//                        String location = headers.get("Location");
+//                        if (!location.equals(prevRedirectionLoc)) {
+//                            channelingSocket.close(cs -> {
+//                            });
+//                            redirectingRequest(location, channelingSocket);
+//                            execute(result);
+//                            return;
+//                        }
+//                    }
+//                }
+//                result.accept(httpResponse, channelingSocket.getContext());
+//                channelingSocket.close(this::closeAndThen);
+//                return;
+//            }
+//        }
+//        eagerRead(channelingSocket);
+//
+//    }
 
     private void redirectingRequest(String location, ChannelingSocket prevSocket) throws Exception {
         URI uri = new URI(location);
