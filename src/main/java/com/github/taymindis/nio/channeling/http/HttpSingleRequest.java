@@ -18,7 +18,7 @@ public class HttpSingleRequest implements HttpRequest {
     private String messageToSend;
     private String host;
     private int port;
-    private ByteArrayOutputStream response;
+    private ChannellingBaos response;
     private ChannelingSocket socket;
     private HttpSingleRequestCallback result;
     private HttpResponseType responseType;
@@ -60,7 +60,7 @@ public class HttpSingleRequest implements HttpRequest {
                                 boolean enableGzipDecompression,
                                 RedirectionSocket redirectionSocket) {
         this.readBuffer = ByteBuffer.allocate(socket.isSSL() ? socket.getSSLMinimumInputBufferSize() : minInputBufferSize);
-        this.response = new ByteArrayOutputStream();
+        this.response = new ChannellingBaos();
         this.messageToSend = messageToSend;
         this.socket = socket;
         this.host = host;
@@ -316,7 +316,7 @@ public class HttpSingleRequest implements HttpRequest {
             this.readBuffer.clear();
         }
         this.response.close();
-        this.response = new ByteArrayOutputStream();
+        this.response = new ChannellingBaos();
         this.responseType = HttpResponseType.PENDING;
         this.contentEncodingType = ContentEncodingType.PENDING;
         this.bodyOffset = -1;

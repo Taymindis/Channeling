@@ -2,7 +2,6 @@ package com.github.taymindis.nio.channeling.http;
 
 import com.github.taymindis.nio.channeling.*;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -13,7 +12,7 @@ public class HttpStreamRequest implements HttpRequest {
     private String messageToSend;
     private String host;
     private int port;
-    private ByteArrayOutputStream currProcessingStream;
+    private ChannellingBaos currProcessingStream;
     private ChannelingSocket socket;
     private HttpStreamRequestCallback streamChunked;
     private HttpResponseType responseType;
@@ -47,7 +46,7 @@ public class HttpStreamRequest implements HttpRequest {
                                 int minInputBufferSize,
                                 boolean enableGzipDecompression) {
         this.readBuffer = ByteBuffer.allocate(socket.isSSL() ? socket.getSSLMinimumInputBufferSize() : minInputBufferSize);
-        this.currProcessingStream = new ByteArrayOutputStream();
+        this.currProcessingStream = new ChannellingBaos();
         this.messageToSend = messageToSend;
         this.socket = socket;
         this.host = host;
