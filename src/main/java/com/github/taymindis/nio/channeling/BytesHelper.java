@@ -2,6 +2,7 @@ package com.github.taymindis.nio.channeling;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -75,6 +76,10 @@ public class BytesHelper {
 
     public static byte[] subBytes(byte[] data, int beginIndex, int endIndex) {
         return Arrays.copyOfRange(data, beginIndex, endIndex);
+    }
+
+    public static byte[] subBytes2(byte[] data, int beginIndex, int endIndex) {
+        return ByteBuffer.wrap(data, beginIndex, endIndex-beginIndex).array();
     }
 
 
