@@ -127,10 +127,10 @@ public class HttpSingleRequest implements HttpRequest {
             if (numRead > 0) {
                 totalRead += numRead;
                 readBuffer.flip();
-                byte[] b = new byte[readBuffer.limit() - readBuffer.position()];
-                readBuffer.get(b);
-                response.write(b);
-                extractResponseAndEncodingType(response.toByteArray());
+//                byte[] b = new byte[readBuffer.limit() - readBuffer.position()];
+//                readBuffer.get(b);
+                response.write(readBuffer);
+                extractResponseAndEncodingType(response.getBytes());
                 readBuffer.clear();
                 channelingSocket.withEagerRead(readBuffer).then(this::readAndThen);
             } else if (totalRead == 0) {
@@ -139,7 +139,7 @@ public class HttpSingleRequest implements HttpRequest {
                 eagerRead(channelingSocket);
             } else {
                 if (bodyOffset == -1) {
-                    extraBodyOffsetOnly(response.toByteArray());
+                    extraBodyOffsetOnly(response.getBytes());
                 }
                 switch (responseType) {
                     case PENDING:
@@ -166,7 +166,7 @@ public class HttpSingleRequest implements HttpRequest {
 
     }
 
-    private void extractResponseAndEncodingType(byte[] bytes) throws Exception {
+    private void extractResponseAndEncodingType(byte[] bytes) {
         if (responseType == HttpResponseType.PENDING || contentEncodingType == ContentEncodingType.PENDING) {
             String consumeMessage = parseToString(bytes);
             if ((bodyOffset = consumeMessage.indexOf("\r\n\r\n")) > 0) {
@@ -199,6 +199,7 @@ public class HttpSingleRequest implements HttpRequest {
                     contentEncodingType = ContentEncodingType.OTHER;
                 }
                 requiredLength += bodyOffset;
+                response.resizeIfNeeded(requiredLength + 5);
             }
         }
 
@@ -218,7 +219,7 @@ public class HttpSingleRequest implements HttpRequest {
     }
 
     private void transferEncodingResponse(ChannelingSocket channelingSocket) throws Exception {
-        byte[] consumedBuffers = response.toByteArray();
+        byte[] consumedBuffers = response.getBytes();
         int len = response.size();
 
 //        String last5Chars = new String(Arrays.copyOfRange(totalConsumedBytes, len - 5, len), StandardCharsets.UTF_8);
@@ -342,7 +343,7 @@ public class HttpSingleRequest implements HttpRequest {
     private void contentLengthResponse(ChannelingSocket channelingSocket) throws Exception {
         if (totalRead >= requiredLength) {
             channelingSocket.noEagerRead();
-            httpResponse.setRawBytes(response.toByteArray());
+            httpResponse.setRawBytes(response.getBytes());
             httpResponse.setBodyOffset(bodyOffset);
             updateResponseType(httpResponse);
 

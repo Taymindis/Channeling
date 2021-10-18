@@ -14,6 +14,7 @@ public class ChannelingBytes implements AutoCloseable {
     private int totalBytes = 0, lastFlushIndex = 0;
     private boolean closed = false;
     private int _factor = 2;
+    private int estimateNextChunkSize = -1;
 
 
     public ChannelingBytes() {
@@ -51,11 +52,16 @@ public class ChannelingBytes implements AutoCloseable {
         } else if (this.closed) {
             throw new IOException("Stream closed");
         }
-        ifResizeRequired(length);
+        resizeIfNeeded(length);
     }
 
-    private void ifResizeRequired(int length) {
+    public void resizeIfNeeded(int length) {
         if (length > remaining()) {
+//            if ( estimateNextChunkSize != -1 ) {
+//                resize(estimateNextChunkSize);
+//                estimateNextChunkSize = -1;
+//                return;
+//            }
             int newSize = capacity() * _factor;
             while ((newSize - totalBytes) < length) {
                 newSize = newSize * _factor;
@@ -69,22 +75,19 @@ public class ChannelingBytes implements AutoCloseable {
             _factor = expandFactor;
         }
     }
-
-
-    public byte[] toByteArray() throws IOException {
-        return toByteArray(0, totalBytes);
+    public void estimateNextChunk(int estimateNextChunkSize) {
+       this.estimateNextChunkSize = estimateNextChunkSize;
     }
 
-    public void setFlushedPosition(int position) throws IOException {
-        this.lastFlushIndex = position;
+    public byte[] getBytes() throws IOException {
+        return readBytes(0, totalBytes);
     }
 
-
-    public byte[] flushedBytes(int limit) throws IOException {
-        return toByteArray(this.lastFlushIndex, limit);
+    public byte[] getBytes(int length) throws IOException {
+        return readBytes(0, length);
     }
 
-    public byte[] toByteArray(int offset, int length) throws IOException {
+    public byte[] getBytes(int offset, int length) throws IOException {
         if (offset < 0 || offset + length > totalBytes || length < 0) {
             throw new IndexOutOfBoundsException();
         } else if (this.closed) {
@@ -94,6 +97,29 @@ public class ChannelingBytes implements AutoCloseable {
         return ByteBuffer.wrap(buffs, offset, length).array();
     }
 
+    public byte[] readBytes(int length) throws IOException {
+        return readBytes(lastFlushIndex, length);
+    }
+
+    public byte[] readBytes() throws IOException {
+        return readBytes(lastFlushIndex, totalBytes);
+    }
+
+    public byte[] readBytes(int offset, int length) throws IOException {
+        if (offset < 0 || offset + length > totalBytes || length < 0) {
+            throw new IndexOutOfBoundsException();
+        } else if (this.closed) {
+            throw new IOException("Stream closed");
+        }
+
+        lastFlushIndex = offset + length;
+
+        return ByteBuffer.wrap(buffs, offset, length).array();
+    }
+
+    public void setFlushedPosition(int position) throws IOException {
+        this.lastFlushIndex = position;
+    }
 
 //
 //    public byte[] toByteArray(int limit) throws IOException {
