@@ -12,7 +12,7 @@ public class HttpStreamRequest implements HttpRequest {
     private String messageToSend;
     private String host;
     private int port;
-    private ChannellingBaos currProcessingStream;
+    private ChannelingBytes currProcessingStream;
     private ChannelingSocket socket;
     private HttpStreamRequestCallback streamChunked;
     private HttpResponseType responseType;
@@ -46,7 +46,7 @@ public class HttpStreamRequest implements HttpRequest {
                                 int minInputBufferSize,
                                 boolean enableGzipDecompression) {
         this.readBuffer = ByteBuffer.allocate(socket.isSSL() ? socket.getSSLMinimumInputBufferSize() : minInputBufferSize);
-        this.currProcessingStream = new ChannellingBaos();
+        this.currProcessingStream = new ChannelingBytes();
         this.messageToSend = messageToSend;
         this.socket = socket;
         this.host = host;
