@@ -137,18 +137,25 @@ public class ChannelingBytes extends OutputStream {
         return buff.array();
     }
 
-    public ChannelingBytesResult searchBytes(byte[] bytes, boolean matchAfter, boolean includeSearchBytes) {
+    public ChannelingBytesResult searchBytes(byte[] bytes, boolean matchAfter, boolean includeSearchBytes, ChannelingBytesResult basedOnResult) {
         byte[] byteStream;
         int indexMatch = 0, searchByteLen = bytes.length;
-        int i = 0;
-        for (;i < buffCount; i++) {
+        int i, sz;
+        if(basedOnResult != null) {
+            i = basedOnResult.getBuffIndexStart();
+            sz = basedOnResult.getBuffIndexEnd();
+        } else {
+            i = 0;
+            sz = buffCount;
+        }
+        for (;i < sz; i++) {
             byteStream = buffs[i];
             for (int j = 0, len = byteStream.length; j < len; j++) {
                 RETRY:
                 if (bytes[indexMatch] == byteStream[j]) {
                     indexMatch++;
                     j++;
-                    for (; i < buffCount; i++) {
+                    for (; i < sz; i++) {
                         byteStream = buffs[i];
                         for (len = byteStream.length; j < len; j++) {
                             if (bytes[indexMatch++] == byteStream[j]) {
@@ -165,30 +172,44 @@ public class ChannelingBytes extends OutputStream {
 //                                            channelingBytesLoop.consumer(byteStream, 0, byteStream.length);
 //                                        }
 
-                                        if (includeSearchBytes && j < searchByteLen) {
-                                            searchByteLen -= j;
+                                        if (includeSearchBytes) {
+                                            if(j < searchByteLen) {
+                                                searchByteLen -= j;
 
-                                            do {
-                                                i--;
-                                                searchByteLen -= buffs[i].length;
-                                            } while (searchByteLen > 0);
+                                                do {
+                                                    i--;
+                                                    searchByteLen -= buffs[i].length;
+                                                } while (searchByteLen > 0);
 
-                                            j = buffs[i].length - (searchByteLen + buffs[i].length) ;
+                                                j = buffs[i].length - (searchByteLen + buffs[i].length);
+                                            } else {
+                                                j -= searchByteLen;
+                                            }
                                         }
-                                        bytesResult = new ChannelingBytesResult(buffs, i, buffCount-1, j+1, buffs[buffCount-1].length);
+                                        bytesResult = new ChannelingBytesResult(buffs, i, sz-1, j+1, buffs[sz-1].length);
 
                                     } else {
-                                        if (!includeSearchBytes && j < searchByteLen) {
-                                            searchByteLen -= j;
+                                        if (!includeSearchBytes) {
+                                            if(j < searchByteLen) {
+                                                searchByteLen -= j;
 
-                                            do {
-                                                i--;
-                                                searchByteLen -= buffs[i].length;
-                                            } while (searchByteLen > 0);
+                                                do {
+                                                    i--;
+                                                    searchByteLen -= buffs[i].length;
+                                                } while (searchByteLen > 0);
 
-                                            j = buffs[i].length - (searchByteLen + buffs[i].length);
+                                                j = buffs[i].length - (searchByteLen + buffs[i].length);
+                                            } else {
+                                                j -= searchByteLen;
+                                            }
                                         }
-                                        bytesResult = new ChannelingBytesResult(buffs, 0, i , 0, j+1);
+                                        if(basedOnResult == null) {
+                                            bytesResult = new ChannelingBytesResult(buffs, 0, i, 0, j + 1);
+                                        } else {
+                                            bytesResult = new ChannelingBytesResult(buffs,
+                                                    basedOnResult.getBuffIndexStart(),
+                                                    i, basedOnResult.getOffSetOfFirst(), j + 1);
+                                        }
                                     }
 
                                     return bytesResult;
@@ -207,11 +228,19 @@ public class ChannelingBytes extends OutputStream {
     }
 
     public ChannelingBytesResult searchBytesBefore(byte[] bytes, boolean includeSearchBytes) {
-        return searchBytes(bytes, false, includeSearchBytes);
+        return searchBytes(bytes, false, includeSearchBytes, null);
     }
 
     public ChannelingBytesResult searchBytesAfter(byte[] bytes, boolean includeSearchBytes) {
-        return searchBytes(bytes, true, includeSearchBytes);
+        return searchBytes(bytes, true, includeSearchBytes, null);
+    }
+
+    public ChannelingBytesResult searchBytesBefore(byte[] bytes, boolean includeSearchBytes,ChannelingBytesResult basedOnResult) {
+        return searchBytes(bytes, false, includeSearchBytes, basedOnResult);
+    }
+
+    public ChannelingBytesResult searchBytesAfter(byte[] bytes, boolean includeSearchBytes,ChannelingBytesResult basedOnResult) {
+        return searchBytes(bytes, true, includeSearchBytes, basedOnResult);
     }
 
     public void loopBuff(ChannelingBytesLoop channelingBytesLoop) {

@@ -22,7 +22,7 @@ public class ChannelingBytesResult {
         // Only one
         if (buffIndexStart == buffIndexEnd) {
             byteStream = buffs[buffIndexEnd];
-            loop.consumer(byteStream, 0, limitOfEnd);
+            loop.consumer(byteStream, offSetOfFirst, limitOfEnd - offSetOfFirst);
             return;
         }
 
@@ -44,11 +44,16 @@ public class ChannelingBytesResult {
 
     public int getTotalBytes() {
         if (totalBytes == -1) {
-            byte[] byteStream = buffs[buffIndexStart];
-            totalBytes = byteStream.length - offSetOfFirst;
+            if (buffIndexStart == buffIndexEnd) {
+                totalBytes = limitOfEnd - offSetOfFirst;
+                return totalBytes;
+            } else {
+                totalBytes = buffs[buffIndexStart].length - offSetOfFirst;
+            }
             for (int i = buffIndexStart + 1; i < buffIndexEnd - 1; i++) {
                 totalBytes += buffs[i].length;
             }
+
             totalBytes += limitOfEnd;
         }
         return totalBytes;
@@ -60,6 +65,14 @@ public class ChannelingBytesResult {
 
     public int getBuffIndexEnd() {
         return buffIndexEnd;
+    }
+
+    public int getOffSetOfFirst() {
+        return offSetOfFirst;
+    }
+
+    public int getLimitOfEnd() {
+        return limitOfEnd;
     }
 }
 
