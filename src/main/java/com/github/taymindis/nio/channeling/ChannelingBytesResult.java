@@ -5,11 +5,12 @@ public class ChannelingBytesResult {
     private final byte[][] buffs;
     private final int buffIndexStart, buffIndexEnd;
     private final int offSetOfFirst, limitOfEnd;
+    private int readIdx;
     private int totalBytes = -1;
 
     public ChannelingBytesResult(byte[][] buffs, int buffIndexStart, int buffIndexEnd, int offSetOfFirst, int limitOfEnd) {
         this.buffs = buffs;
-        this.buffIndexStart = buffIndexStart;
+        this.readIdx = this.buffIndexStart = buffIndexStart;
         this.buffIndexEnd = buffIndexEnd;
         this.offSetOfFirst = offSetOfFirst;
         this.limitOfEnd = limitOfEnd;
@@ -37,8 +38,24 @@ public class ChannelingBytesResult {
 
             byteStream = buffs[buffIndexEnd];
             loop.consumer(byteStream, 0, limitOfEnd);
-
         }
+    }
+
+    public boolean read(ChannelingBytes bytes) {
+//        if (readIdx == buffIndexEnd || rea) {
+//            bytes.setBuff(buffs[buffIndexStart]);
+//
+//            if (readIdx == buffIndexStart) {
+//                bytes.setOffset(offSetOfFirst);
+//            } else {
+//                bytes.setOffset(0);
+//            }
+//            bytes.setLength(limitOfEnd - offSetOfFirst);
+//            return true;
+//        }
+
+
+        return false;
 
     }
 

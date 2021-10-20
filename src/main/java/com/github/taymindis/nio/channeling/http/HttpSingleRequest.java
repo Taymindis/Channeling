@@ -1,7 +1,7 @@
 package com.github.taymindis.nio.channeling.http;
 
 import com.github.taymindis.nio.channeling.BytesHelper;
-import com.github.taymindis.nio.channeling.ChannelingBytes;
+import com.github.taymindis.nio.channeling.ChannelingBytesStream;
 import com.github.taymindis.nio.channeling.ChannelingSocket;
 import com.github.taymindis.nio.channeling.WhenConnectingStatus;
 
@@ -18,7 +18,7 @@ public class HttpSingleRequest implements HttpRequest {
     private String messageToSend;
     private String host;
     private int port;
-    private ChannelingBytes response;
+    private ChannelingBytesStream response;
     private ChannelingSocket socket;
     private HttpSingleRequestCallback result;
     private HttpResponseType responseType;
@@ -60,7 +60,7 @@ public class HttpSingleRequest implements HttpRequest {
                                 boolean enableGzipDecompression,
                                 RedirectionSocket redirectionSocket) {
         this.readBuffer = ByteBuffer.allocate(socket.isSSL() ? socket.getSSLMinimumInputBufferSize() : minInputBufferSize);
-        this.response = new ChannelingBytes();
+        this.response = new ChannelingBytesStream();
         this.messageToSend = messageToSend;
         this.socket = socket;
         this.host = host;
@@ -316,7 +316,7 @@ public class HttpSingleRequest implements HttpRequest {
             this.readBuffer.clear();
         }
         this.response.close();
-        this.response = new ChannelingBytes();
+        this.response = new ChannelingBytesStream();
         this.responseType = HttpResponseType.PENDING;
         this.contentEncodingType = ContentEncodingType.PENDING;
         this.bodyOffset = -1;
