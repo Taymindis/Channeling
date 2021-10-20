@@ -42,6 +42,36 @@ public class ChannelingBytesResult {
 
     }
 
+    public byte[] dupBytes() {
+        byte[] result = new byte[getTotalBytes()];
+        int numOfWrite = 0, len;
+        byte[] byteStream = buffs[buffIndexStart];
+
+        // Only one
+        if (buffIndexStart == buffIndexEnd) {
+            byteStream = buffs[buffIndexEnd];
+            System.arraycopy(byteStream, offSetOfFirst, result, 0, limitOfEnd - offSetOfFirst);
+            return result;
+        }
+
+
+        len = byteStream.length - offSetOfFirst;
+        System.arraycopy(byteStream, offSetOfFirst, result, 0, len);
+        numOfWrite += len;
+
+
+        for (int i = buffIndexStart + 1; i < buffIndexEnd - 1; i++) {
+            byteStream = buffs[i];
+            len = byteStream.length;
+            System.arraycopy(byteStream, 0, result, numOfWrite, len);
+            numOfWrite += len;
+        }
+
+        byteStream = buffs[buffIndexEnd];
+        System.arraycopy(byteStream, 0, result, numOfWrite, limitOfEnd);
+        return result;
+    }
+
     public int getTotalBytes() {
         if (totalBytes == -1) {
             if (buffIndexStart == buffIndexEnd) {

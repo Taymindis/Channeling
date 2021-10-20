@@ -93,34 +93,43 @@ public class HttpStreamRequest implements HttpRequest {
             }
 
             if (currProcessingStream.size() > 0) {
-                byte[] currBytes = currProcessingStream.toByteArray();
-                if (tryFindingBodyOffset(currBytes)) {
-                    extractResponseAndEncodingType(currBytes);
-                    currProcessingStream.reset();
-                    if (currBytes.length > bodyOffset) {
-                        // TODO check this part please, is this causing number format issue?
-                        currProcessingStream.write(currBytes, bodyOffset, currBytes.length - bodyOffset);
+//                byte[] currBytes = currProcessingStream.toByteArray();
+                if (tryFindingBodyOffset(new ChannelingBytesLoop() {
+                    @Override
+                    public boolean consumer(byte[] bytes, int offset, int length) {
+
+//                        currProcessingStream.reset();
+                        if (currBytes.length > bodyOffset) {
+                            // TODO check this part please, is this causing number format issue?
+                            currProcessingStream.write(currBytes, bodyOffset, currBytes.length - bodyOffset);
+                        }
+                        streamChunked.header(reqHeaders, channelingSocket);
+                        switch (responseType) {
+                            case TRANSFER_CHUNKED:
+                                processChunked(currProcessingStream.toByteArray(), channelingSocket);
+                                break;
+                            case CONTENT_LENGTH:
+                                if (totalRead >= requiredLength) {
+                                    streamChunked.last(currProcessingStream.toByteArray(), channelingSocket);
+                                    channelingSocket.close(HttpStreamRequest.this::closeAndThen);
+                                    return;
+                                } else {
+                                    streamChunked.accept(currProcessingStream.toByteArray(), channelingSocket);
+                                    currProcessingStream.reset();
+                                    eagerRead(channelingSocket, HttpStreamRequest.this::massageContentLengthBody);
+                                }
+                                break;
+                            case PENDING:
+                            case PARTIAL_CONTENT:
+                                break;
+                        }
+
+
+
+                        return true;
                     }
-                    streamChunked.header(reqHeaders, channelingSocket);
-                    switch (responseType) {
-                        case TRANSFER_CHUNKED:
-                            processChunked(currProcessingStream.toByteArray(), channelingSocket);
-                            break;
-                        case CONTENT_LENGTH:
-                            if (totalRead >= requiredLength) {
-                                streamChunked.last(currProcessingStream.toByteArray(), channelingSocket);
-                                channelingSocket.close(this::closeAndThen);
-                                return;
-                            } else {
-                                streamChunked.accept(currProcessingStream.toByteArray(), channelingSocket);
-                                currProcessingStream.reset();
-                                eagerRead(channelingSocket, this::massageContentLengthBody);
-                            }
-                            break;
-                        case PENDING:
-                        case PARTIAL_CONTENT:
-                            break;
-                    }
+                })) {
+
 
                     return;
                 }
@@ -265,45 +274,70 @@ public class HttpStreamRequest implements HttpRequest {
 
     }
 
-    private void extractResponseAndEncodingType(byte[] bytes) {
+    private void extractResponseAndEncodingType(ChannelingBytesResult basedOnResult) {
         if (responseType == HttpResponseType.PENDING || contentEncodingType == ContentEncodingType.PENDING) {
             // Means done header bytes
 //                String headersContent = consumeMessage.substring(0, bodyOffset);
 //                httpResponse.setHeaders(headersContent);
-            reqHeaders = new String(BytesHelper.subBytes(bytes, 0, bodyOffset));
-            String lowCaseHeaders = reqHeaders.toLowerCase();
-            if (lowCaseHeaders.contains("transfer-encoding:")) {
+//            reqHeaders = new String(BytesHelper.subBytes(bytes, 0, bodyOffset));
+//            String lowCaseHeaders = reqHeaders.toLowerCase();
+            ChannelingBytesResult contentLengthResult;
+
+            if(currProcessingStream.searchBytesAfter("transfer-encoding:".getBytes(), false, basedOnResult) != null) {
                 responseType = HttpResponseType.TRANSFER_CHUNKED;
-            } else if (lowCaseHeaders.contains("content-length:")) {
+            } else if((contentLengthResult = currProcessingStream.searchBytesAfter("content-length:".getBytes(), false, basedOnResult)) != null) {
+                contentLengthResult = currProcessingStream.searchBytesAfter("\r\n".getBytes(), false, contentLengthResult);
+
+                contentLengthResult.dupBytes()
+
+
                 String contentLength = lowCaseHeaders.substring(lowCaseHeaders.indexOf("content-length:") + "content-length:".length()).split("\\r?\\n", 2)[0];
                 requiredLength = Integer.parseInt(contentLength.trim());
+                requiredLength += bodyOffset;
                 responseType = HttpResponseType.CONTENT_LENGTH;
             } else {
-                requiredLength = bytes.length - bodyOffset;
+                requiredLength = basedOnResult.getTotalBytes();
                 responseType = HttpResponseType.CONTENT_LENGTH;
             }
 
-            if (lowCaseHeaders.contains("content-encoding: gzip")) {
+            if (currProcessingStream.searchBytesAfter("content-encoding: gzip".getBytes(), false, basedOnResult) != null) {
                 contentEncodingType = ContentEncodingType.GZIP;
             } else if (contentEncodingType == ContentEncodingType.PENDING) {
                 contentEncodingType = ContentEncodingType.OTHER;
             }
-            requiredLength += bodyOffset;
         }
     }
 
-    private boolean tryFindingBodyOffset(byte[] bytes) {
+    private boolean tryFindingBodyOffset(ChannelingBytesLoop loop) {
         if (bodyOffset == -1) {
-            if ((bodyOffset = BytesHelper.indexOf(bytes, "\r\n\r\n".getBytes())) > 0) {
-                bodyOffset += 4;
-                requiredLength += bodyOffset;
-                return true;
-            } else if ((bodyOffset = BytesHelper.indexOf(bytes, "\n\n".getBytes())) > 0) {
-                bodyOffset += 2;
-                requiredLength += bodyOffset;
-                return true;
+
+            ChannelingBytesResult result = currProcessingStream.searchBytesBefore("\r\n\r\n".getBytes(), false);
+
+            if(result == null) {
+                return false;
             }
-            return false;
+
+//            bodyOffset = result.getTotalBytes();
+            extractResponseAndEncodingType(result);
+
+
+            result.flush(loop);
+
+
+
+            return true;
+
+
+//            if ((bodyOffset = BytesHelper.indexOf(bytes, "\r\n\r\n".getBytes())) > 0) {
+//                bodyOffset += 4;
+//                requiredLength += bodyOffset;
+//                return true;
+//            } else if ((bodyOffset = BytesHelper.indexOf(bytes, "\n\n".getBytes())) > 0) {
+//                bodyOffset += 2;
+//                requiredLength += bodyOffset;
+//                return true;
+//            }
+//            return false;
         }
         return true;
     }
