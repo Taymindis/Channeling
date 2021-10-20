@@ -5,6 +5,12 @@ public class ChannelingBytes {
 
     private byte[] buff;
     private int offset, length;
+    public ChannelingBytes(){}
+    public ChannelingBytes(byte[] buff, int offset, int length) {
+        this.buff = buff;
+        this.offset = offset;
+        this.length = length;
+    }
 
     public byte[] getBuff() {
         return buff;

@@ -2,6 +2,7 @@ package com.github.taymindis.nio.channeling.http;
 
 import com.github.taymindis.nio.channeling.*;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -12,7 +13,7 @@ public class HttpStreamRequest implements HttpRequest {
     private String messageToSend;
     private String host;
     private int port;
-    private ChannelingBytesStream currProcessingStream;
+    private ChannelingBytesStream channelingBytesStream;
     private ChannelingSocket socket;
     private HttpStreamRequestCallback streamChunked;
     private HttpResponseType responseType;
@@ -23,7 +24,8 @@ public class HttpStreamRequest implements HttpRequest {
     private static final int NEWLINE_BYTE_LENGTH = "\r\n".getBytes().length;
 
     private final boolean enableGzipDecompression;
-    private byte[] previousChunked = new byte[0];
+    private ChannelingBytes previousChunked = new ChannelingBytes(new byte[0], 0, 0);
+    private ChannelingBytesResult headerResult;
 
     public HttpStreamRequest(ChannelingSocket socket,
                              String host, int port,
@@ -46,7 +48,7 @@ public class HttpStreamRequest implements HttpRequest {
                                 int minInputBufferSize,
                                 boolean enableGzipDecompression) {
         this.readBuffer = ByteBuffer.allocate(socket.isSSL() ? socket.getSSLMinimumInputBufferSize() : minInputBufferSize);
-        this.currProcessingStream = new ChannelingBytesStream();
+        this.channelingBytesStream = new ChannelingBytesStream();
         this.messageToSend = messageToSend;
         this.socket = socket;
         this.host = host;
@@ -83,7 +85,7 @@ public class HttpStreamRequest implements HttpRequest {
                 readBuffer.flip();
                 byte[] b = new byte[readBuffer.limit() - readBuffer.position()];
                 readBuffer.get(b);
-                currProcessingStream.write(b);
+                channelingBytesStream.write(b);
             } else if (totalRead == 0) {
                 eagerRead(channelingSocket, this::massageHeader);
             } else if (contentEncodingType == ContentEncodingType.PENDING) {
@@ -92,47 +94,47 @@ public class HttpStreamRequest implements HttpRequest {
                 throw new IllegalStateException("Unknown action headers ....");
             }
 
-            if (currProcessingStream.size() > 0) {
+            if (channelingBytesStream.size() > 0) {
 //                byte[] currBytes = currProcessingStream.toByteArray();
-                if (tryFindingBodyOffset(new ChannelingBytesLoop() {
-                    @Override
-                    public boolean consumer(byte[] bytes, int offset, int length) {
-
-//                        currProcessingStream.reset();
-                        if (currBytes.length > bodyOffset) {
-                            // TODO check this part please, is this causing number format issue?
-                            currProcessingStream.write(currBytes, bodyOffset, currBytes.length - bodyOffset);
-                        }
-                        streamChunked.header(reqHeaders, channelingSocket);
-                        switch (responseType) {
-                            case TRANSFER_CHUNKED:
-                                processChunked(currProcessingStream.toByteArray(), channelingSocket);
-                                break;
-                            case CONTENT_LENGTH:
-                                if (totalRead >= requiredLength) {
-                                    streamChunked.last(currProcessingStream.toByteArray(), channelingSocket);
-                                    channelingSocket.close(HttpStreamRequest.this::closeAndThen);
-                                    return;
-                                } else {
-                                    streamChunked.accept(currProcessingStream.toByteArray(), channelingSocket);
-                                    currProcessingStream.reset();
-                                    eagerRead(channelingSocket, HttpStreamRequest.this::massageContentLengthBody);
-                                }
-                                break;
-                            case PENDING:
-                            case PARTIAL_CONTENT:
-                                break;
-                        }
+                if ( findHeaders() ) {
 
 
 
-                        return true;
+
+
+                    ChannelingBytes bytes = new ChannelingBytes();
+                    while(headerResult.read(bytes)) {
+                        streamChunked.headerAccept(bytes, channelingSocket);
                     }
-                })) {
 
+                    streamChunked.afterHeader(channelingSocket);
 
-                    return;
+                    headerResult.flip(channelingBytesStream);
+
+                    switch (responseType) {
+                        case TRANSFER_CHUNKED:
+                            while(headerResult.read(bytes)) {
+                                processChunked(bytes, channelingSocket);
+                            }
+                            break;
+                        case CONTENT_LENGTH:
+                            if (totalRead >= requiredLength) {
+                                streamChunked.last(channelingBytesStream.toByteArray(), channelingSocket);
+                                channelingSocket.close(HttpStreamRequest.this::closeAndThen);
+                                return;
+                            } else {
+                                streamChunked.accept(channelingBytesStream.toByteArray(), channelingSocket);
+                                channelingBytesStream.reset();
+                                eagerRead(channelingSocket, HttpStreamRequest.this::massageContentLengthBody);
+                            }
+                            break;
+                        case PENDING:
+                        case PARTIAL_CONTENT:
+                            break;
+                    }
                 }
+
+
             }
             eagerRead(channelingSocket, this::massageHeader);
         } catch (Exception e) {
@@ -151,8 +153,11 @@ public class HttpStreamRequest implements HttpRequest {
                 byte[] b = new byte[readBuffer.limit() - readBuffer.position()];
                 readBuffer.get(b);
 //                currConsumedBytes = b;
-                currProcessingStream.write(b);
-                processChunked(currProcessingStream.toByteArray(), channelingSocket);
+                channelingBytesStream.write(b);
+                ChannelingBytes bytes = new ChannelingBytes();
+                while(headerResult.read(bytes)) {
+                    processChunked(bytes, channelingSocket);
+                }
             } else {
                 eagerRead(channelingSocket, this::massageChunkedBody);
             }
@@ -167,33 +172,37 @@ public class HttpStreamRequest implements HttpRequest {
      * @param channelingSocket
      * @throws IOException
      */
-    private void processChunked(byte[] chunked, ChannelingSocket channelingSocket) throws IOException {
-        int chunkLen = chunked.length;
-        if (isLastChunked(chunked, chunkLen)) {
+    private void processChunked(ChannelingBytes bytes, ChannelingSocket channelingSocket) throws IOException {
+        if (isLastChunked(bytes)) {
             channelingSocket.noEagerRead();
-            streamChunked.last(chunked, channelingSocket);
+            streamChunked.last(bytes, channelingSocket);
             channelingSocket.close(this::closeAndThen);
         } else {
-            previousChunked = chunked;
-            streamChunked.accept(chunked, channelingSocket);
-            currProcessingStream.reset();
+            previousChunked = bytes;
+            streamChunked.accept(bytes, channelingSocket);
+            channelingBytesStream.reset();
             eagerRead(channelingSocket, this::massageChunkedBody);
         }
 
     }
 
-    private boolean isLastChunked(byte[] chunked, int chunkLen) throws IOException {
+    private boolean isLastChunked(ChannelingBytes bytes) throws IOException {
+        int chunkLen = bytes.getLength();
+        byte[] chunked = bytes.getBuff();
         if(chunkLen >= 7) {
-           return BytesHelper.equals(chunked, "\r\n0\r\n\r\n".getBytes(), chunkLen - 7);
+           return BytesHelper.equals(chunked, "\r\n0\r\n\r\n".getBytes(), bytes.getOffset());
         } else {
-            int prevLen = previousChunked.length;
+            int prevLen = previousChunked.getLength();
             if (prevLen > 0) {
-
                 byte[] lastAttemptedChunk;
                 if (prevLen <= 7) {
-                    lastAttemptedChunk = BytesHelper.concat(previousChunked, chunked);
+                    lastAttemptedChunk = new byte[previousChunked.getLength() + chunkLen];
+                    System.arraycopy(previousChunked.getBuff(), previousChunked.getOffset(), lastAttemptedChunk, 0, previousChunked.getLength());
+                    System.arraycopy(chunked, bytes.getOffset(), lastAttemptedChunk, previousChunked.getLength() , chunkLen);
                 } else {
-                    lastAttemptedChunk = BytesHelper.concat(BytesHelper.subBytes(previousChunked, prevLen-7), chunked);
+                    lastAttemptedChunk = new byte[7 + chunkLen];
+                    System.arraycopy(previousChunked.getBuff(),prevLen-7, lastAttemptedChunk, 0, 7);
+                    System.arraycopy(chunked, bytes.getOffset(), lastAttemptedChunk,7 , chunkLen);
                 }
                 return BytesHelper.equals(lastAttemptedChunk, "\r\n0\r\n\r\n".getBytes(), lastAttemptedChunk.length - 7);
             }
@@ -201,51 +210,50 @@ public class HttpStreamRequest implements HttpRequest {
         return false;
     }
 
-    public void eagerChunkBodyLen(ChannelingSocket channelingSocket) {
-        int numRead = channelingSocket.getLastProcessedBytes();
-        ByteBuffer readBuffer = channelingSocket.getReadBuffer();
-        try {
-            if (numRead > 0) {
-                totalRead += numRead;
-                readBuffer.flip();
-                byte[] b = new byte[readBuffer.limit() - readBuffer.position()];
-                readBuffer.get(b);
-//                currConsumedBytes = b;
-                currProcessingStream.write(b);
-                if (currProcessingStream.size() < currChunkLength) {
-                    eagerRead(channelingSocket, this::eagerChunkBodyLen);
-                    return;
-                }
-
-                byte[] chunkBody = currProcessingStream.toByteArray();
-
-                if (BytesHelper.equals(chunkBody, "\r\n0\r\n\r\n".getBytes(), chunkBody.length - 7)) {
-                    channelingSocket.noEagerRead();
-                    streamChunked.last(chunkBody, channelingSocket);
-                    channelingSocket.close(this::closeAndThen);
-                } else {
-                    streamChunked.accept(BytesHelper.subBytes(chunkBody, 0, currChunkLength - NEWLINE_BYTE_LENGTH), channelingSocket);
-                    currProcessingStream.reset();
-                    byte[] chunked = BytesHelper.subBytes(chunkBody, currChunkLength, chunkBody.length);
-                    int len = chunked.length;
-                    if (len == 0) {
-                        eagerRead(channelingSocket, this::massageChunkedBody);
-                    } else if (len >= 5 && BytesHelper.equals(chunked, "0\r\n\r\n".getBytes(), len - 5)) {
-                        channelingSocket.noEagerRead();
-                        streamChunked.last("".getBytes(), channelingSocket);
-                        channelingSocket.close(this::closeAndThen);
-                    } else {
-                        processChunked(chunked, channelingSocket);
-                    }
-                }
-            } else {
-                eagerRead(channelingSocket, this::eagerChunkBodyLen);
-            }
-        } catch (Exception e) {
-            error(channelingSocket, e);
-        }
-
-    }
+//    public void eagerChunkBodyLen(ChannelingSocket channelingSocket) {
+//        int numRead = channelingSocket.getLastProcessedBytes();
+//        ByteBuffer readBuffer = channelingSocket.getReadBuffer();
+//        try {
+//            if (numRead > 0) {
+//                totalRead += numRead;
+//                readBuffer.flip();
+//                byte[] b = new byte[readBuffer.limit() - readBuffer.position()];
+//                readBuffer.get(b);
+////                currConsumedBytes = b;
+//                channelingBytesStream.write(b);
+//                if (channelingBytesStream.size() < currChunkLength) {
+//                    eagerRead(channelingSocket, this::eagerChunkBodyLen);
+//                    return;
+//                }
+//
+//                byte[] chunkBody = channelingBytesStream.toByteArray();
+//
+//                if (BytesHelper.equals(chunkBody, "\r\n0\r\n\r\n".getBytes(), chunkBody.length - 7)) {
+//                    channelingSocket.noEagerRead();
+//                    streamChunked.last(chunkBody, channelingSocket);
+//                    channelingSocket.close(this::closeAndThen);
+//                } else {
+//                    streamChunked.accept(BytesHelper.subBytes(chunkBody, 0, currChunkLength - NEWLINE_BYTE_LENGTH), channelingSocket);
+//                    channelingBytesStream.reset();
+//                    byte[] chunked = BytesHelper.subBytes(chunkBody, currChunkLength, chunkBody.length);
+//                    int len = chunked.length;
+//                    if (len == 0) {
+//                        eagerRead(channelingSocket, this::massageChunkedBody);
+//                    } else if (len >= 5 && BytesHelper.equals(chunked, "0\r\n\r\n".getBytes(), len - 5)) {
+//                        channelingSocket.noEagerRead();
+//                        streamChunked.last("".getBytes(), channelingSocket);
+//                        channelingSocket.close(this::closeAndThen);
+//                    } else {
+//                        processChunked(chunked, channelingSocket);
+//                    }
+//                }
+//            } else {
+//                eagerRead(channelingSocket, this::eagerChunkBodyLen);
+//            }
+//        } catch (Exception e) {
+//            error(channelingSocket, e);
+//        }
+//    }
 
     public void massageContentLengthBody(ChannelingSocket channelingSocket) {
         int numRead = channelingSocket.getLastProcessedBytes();
@@ -274,70 +282,39 @@ public class HttpStreamRequest implements HttpRequest {
 
     }
 
-    private void extractResponseAndEncodingType(ChannelingBytesResult basedOnResult) {
-        if (responseType == HttpResponseType.PENDING || contentEncodingType == ContentEncodingType.PENDING) {
-            // Means done header bytes
-//                String headersContent = consumeMessage.substring(0, bodyOffset);
-//                httpResponse.setHeaders(headersContent);
-//            reqHeaders = new String(BytesHelper.subBytes(bytes, 0, bodyOffset));
-//            String lowCaseHeaders = reqHeaders.toLowerCase();
-            ChannelingBytesResult contentLengthResult;
-
-            if(currProcessingStream.searchBytesAfter("transfer-encoding:".getBytes(), false, basedOnResult) != null) {
-                responseType = HttpResponseType.TRANSFER_CHUNKED;
-            } else if((contentLengthResult = currProcessingStream.searchBytesAfter("content-length:".getBytes(), false, basedOnResult)) != null) {
-                contentLengthResult = currProcessingStream.searchBytesAfter("\r\n".getBytes(), false, contentLengthResult);
-
-                contentLengthResult.dupBytes()
-
-
-                String contentLength = lowCaseHeaders.substring(lowCaseHeaders.indexOf("content-length:") + "content-length:".length()).split("\\r?\\n", 2)[0];
-                requiredLength = Integer.parseInt(contentLength.trim());
-                requiredLength += bodyOffset;
-                responseType = HttpResponseType.CONTENT_LENGTH;
-            } else {
-                requiredLength = basedOnResult.getTotalBytes();
-                responseType = HttpResponseType.CONTENT_LENGTH;
-            }
-
-            if (currProcessingStream.searchBytesAfter("content-encoding: gzip".getBytes(), false, basedOnResult) != null) {
-                contentEncodingType = ContentEncodingType.GZIP;
-            } else if (contentEncodingType == ContentEncodingType.PENDING) {
-                contentEncodingType = ContentEncodingType.OTHER;
-            }
-        }
-    }
-
-    private boolean tryFindingBodyOffset(ChannelingBytesLoop loop) {
+    private boolean findHeaders() {
         if (bodyOffset == -1) {
 
-            ChannelingBytesResult result = currProcessingStream.searchBytesBefore("\r\n\r\n".getBytes(), false);
+            headerResult = channelingBytesStream.searchBytesBefore("\r\n\r\n".getBytes(), false);
 
-            if(result == null) {
+            if(headerResult == null) {
                 return false;
             }
+            bodyOffset = headerResult.getTotalBytes() + "\r\n\r\n".getBytes().length;
 
-//            bodyOffset = result.getTotalBytes();
-            extractResponseAndEncodingType(result);
+            if (responseType == HttpResponseType.PENDING || contentEncodingType == ContentEncodingType.PENDING) {
+                ChannelingBytesResult contentLengthResult;
 
+                if(channelingBytesStream.searchBytesAfter("transfer-encoding:".getBytes(), false, headerResult) != null) {
+                    responseType = HttpResponseType.TRANSFER_CHUNKED;
+                } else if((contentLengthResult = channelingBytesStream.searchBytesAfter("content-length:".getBytes(), false, headerResult)) != null) {
+                    contentLengthResult = channelingBytesStream.searchBytesBefore("\r\n".getBytes(), false, contentLengthResult);
+                    String contentLength = new String(contentLengthResult.dupBytes());
+                    requiredLength = Integer.parseInt(contentLength.trim());
+                    requiredLength += bodyOffset;
+                    responseType = HttpResponseType.CONTENT_LENGTH;
+                } else {
+                    requiredLength = headerResult.getTotalBytes();
+                    responseType = HttpResponseType.CONTENT_LENGTH;
+                }
 
-            result.flush(loop);
-
-
-
+                if (channelingBytesStream.searchBytesAfter("content-encoding: gzip".getBytes(), false, headerResult) != null) {
+                    contentEncodingType = ContentEncodingType.GZIP;
+                } else if (contentEncodingType == ContentEncodingType.PENDING) {
+                    contentEncodingType = ContentEncodingType.OTHER;
+                }
+            }
             return true;
-
-
-//            if ((bodyOffset = BytesHelper.indexOf(bytes, "\r\n\r\n".getBytes())) > 0) {
-//                bodyOffset += 4;
-//                requiredLength += bodyOffset;
-//                return true;
-//            } else if ((bodyOffset = BytesHelper.indexOf(bytes, "\n\n".getBytes())) > 0) {
-//                bodyOffset += 2;
-//                requiredLength += bodyOffset;
-//                return true;
-//            }
-//            return false;
         }
         return true;
     }

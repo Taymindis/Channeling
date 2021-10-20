@@ -3,8 +3,8 @@ package com.github.taymindis.nio.channeling;
 public class ChannelingBytesResult {
 
     private final byte[][] buffs;
-    private final int buffIndexStart, buffIndexEnd;
-    private final int offSetOfFirst, limitOfEnd;
+    private int buffIndexStart, buffIndexEnd;
+    private int offSetOfFirst, limitOfEnd;
     private int readIdx;
     private int totalBytes = -1;
 
@@ -42,21 +42,31 @@ public class ChannelingBytesResult {
     }
 
     public boolean read(ChannelingBytes bytes) {
-//        if (readIdx == buffIndexEnd || rea) {
-//            bytes.setBuff(buffs[buffIndexStart]);
-//
-//            if (readIdx == buffIndexStart) {
-//                bytes.setOffset(offSetOfFirst);
-//            } else {
-//                bytes.setOffset(0);
-//            }
-//            bytes.setLength(limitOfEnd - offSetOfFirst);
-//            return true;
-//        }
-
-
+        if(readIdx <= buffIndexEnd) {
+            if (readIdx == buffIndexStart) {
+                bytes.setBuff(buffs[buffIndexStart]);
+                bytes.setOffset(offSetOfFirst);
+                if (readIdx == buffIndexEnd) {
+                    bytes.setLength(limitOfEnd - offSetOfFirst);
+                }
+            } else {
+                byte[] buff = buffs[readIdx];
+                bytes.setBuff(buff);
+                bytes.setOffset(0);
+                if (readIdx == buffIndexEnd) {
+                    bytes.setLength(limitOfEnd);
+                } else {
+                    bytes.setLength(buff.length);
+                }
+            }
+            readIdx++;
+            return true;
+        }
         return false;
+    }
 
+    public void resetRead() {
+        readIdx = buffIndexStart;
     }
 
     public byte[] dupBytes() {
@@ -104,6 +114,24 @@ public class ChannelingBytesResult {
             totalBytes += limitOfEnd;
         }
         return totalBytes;
+    }
+
+    /**
+     flip the other half
+     * @param stream
+     */
+    public void flip(ChannelingBytesStream stream) {
+        if(this.buffIndexStart == stream.size()-1) {
+            this.limitOfEnd = buffs[buffIndexStart].length - limitOfEnd;
+        } else {
+            this.limitOfEnd = buffs[stream.size()-1].length;
+        }
+
+        this.buffIndexStart = buffIndexEnd;
+        this.buffIndexEnd = stream.size();
+        this.offSetOfFirst = limitOfEnd;
+
+
     }
 
     public int getBuffIndexStart() {
