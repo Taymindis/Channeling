@@ -97,10 +97,14 @@ public class HttpStreamRequest implements HttpRequest {
             if (channelingBytesStream.size() > 0) {
 //                byte[] currBytes = currProcessingStream.toByteArray();
                 if ( findHeaders() ) {
-                    
+
+
+
+
+
                     ChannelingBytes bytes = new ChannelingBytes();
                     while(headerResult.read(bytes)) {
-                        streamChunked.headerAccept(bytes, channelingSocket);
+                        streamChunked.headerAccept(bytes.getBuff(), bytes.getOffset(), bytes.getLength(), channelingSocket);
                     }
 
                     streamChunked.afterHeader(channelingSocket);
@@ -116,13 +120,13 @@ public class HttpStreamRequest implements HttpRequest {
                         case CONTENT_LENGTH:
                             if (totalRead >= requiredLength) {
                                 while(headerResult.readUntilLast(bytes)) {
-                                    streamChunked.last(bytes, channelingSocket);
+                                    streamChunked.last(bytes.getBuff(), bytes.getOffset(), bytes.getLength(), channelingSocket);
                                 }
                                 channelingSocket.close(HttpStreamRequest.this::closeAndThen);
                                 return;
                             } else {
                                 while(headerResult.read(bytes)) {
-                                    streamChunked.accept(bytes, channelingSocket);
+                                    streamChunked.accept(bytes.getBuff(), bytes.getOffset(), bytes.getLength(), channelingSocket);
                                 }
                                 channelingBytesStream.reset();
                                 eagerRead(channelingSocket, HttpStreamRequest.this::massageContentLengthBody);
@@ -175,11 +179,11 @@ public class HttpStreamRequest implements HttpRequest {
     private void processChunked(ChannelingBytes bytes, ChannelingSocket channelingSocket) throws IOException {
         if (isLastChunked(bytes)) {
             channelingSocket.noEagerRead();
-            streamChunked.last(bytes, channelingSocket);
+            streamChunked.last(bytes.getBuff(), bytes.getOffset(), bytes.getLength(), channelingSocket);
             channelingSocket.close(this::closeAndThen);
         } else {
             previousChunked = bytes;
-            streamChunked.accept(bytes, channelingSocket);
+            streamChunked.accept(bytes.getBuff(), bytes.getOffset(), bytes.getLength(), channelingSocket);
             channelingBytesStream.reset();
             eagerRead(channelingSocket, this::massageChunkedBody);
         }
@@ -266,11 +270,11 @@ public class HttpStreamRequest implements HttpRequest {
                 byte[] b = new byte[readBuffer.limit() - readBuffer.position()];
                 readBuffer.get(b);
                 if (totalRead >= requiredLength) {
-                    streamChunked.last(b, channelingSocket);
+                    streamChunked.last(b, 0, b.length, channelingSocket);
                     channelingSocket.close(this::closeAndThen);
                     return;
                 } else {
-                    streamChunked.accept(b, channelingSocket);
+                    streamChunked.accept(b, 0, b.length, channelingSocket);
                 }
             }
 

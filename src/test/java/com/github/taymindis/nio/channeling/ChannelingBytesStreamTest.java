@@ -21,20 +21,20 @@ public class ChannelingBytesStreamTest {
     }
 
     @Test
-    public void testSearchBefore() throws IOException, InterruptedException {
+    public void testSearchBeforeAndAfter() throws IOException, InterruptedException {
 
         ChannelingBytesResult result = channelingBytesStream.searchBytesAfter("\r\n\r\n".getBytes(), true);
 
         Assertions.assertNotNull(result);
 
-        result = channelingBytesStream.searchBytesBefore("<!doc".getBytes(), false, result);
+        result = channelingBytesStream.searchBytesBefore("Copyright The Closure Library Authors.\r\n".getBytes(), true, result);
 
         int totalBytes = result.getTotalBytes();
 
         Assertions.assertTrue(totalBytes>0, "Total Bytes should not be 0 !");
         System.out.print("\"");
 
-        result.flush(new ChannelingBytesLoop() {
+        result.forEach(new ChannelingBytesLoop() {
             @Override
             public boolean consumer(byte[] bytes, int offset, int length) {
 
@@ -59,7 +59,7 @@ public class ChannelingBytesStreamTest {
         Assertions.assertTrue(totalBytes>0, "Total Bytes should not be 0 !");
         System.out.print("\"");
 
-        result.flush(new ChannelingBytesLoop() {
+        result.forEach(new ChannelingBytesLoop() {
             @Override
             public boolean consumer(byte[] bytes, int offset, int length) {
                 System.out.print(new String(bytes, offset, length));
@@ -68,6 +68,28 @@ public class ChannelingBytesStreamTest {
         });
 
         System.out.print("\"");
+    }
 
+    @Test
+    public void testReverseSearchAfter() {
+
+        ChannelingBytesResult result = channelingBytesStream.reverseSearchBytesAfter("ml(d instanceof ".getBytes(), false);
+
+        Assertions.assertNotNull(result);
+
+        int totalBytes = result.getTotalBytes();
+
+//        Assertions.assertTrue(totalBytes>0, "Total Bytes should not be 0 !");
+        System.out.print("\"");
+
+        result.forEach(new ChannelingBytesLoop() {
+            @Override
+            public boolean consumer(byte[] bytes, int offset, int length) {
+                System.out.print(new String(bytes, offset, length));
+                return true;
+            }
+        });
+
+        System.out.print("\"");
     }
 }

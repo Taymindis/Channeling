@@ -16,8 +16,11 @@ public class ChannelingBytesResult {
         this.limitOfEnd = limitOfEnd;
     }
 
-    // TODO lambda or not ?
-    public void flush(ChannelingBytesLoop loop) {
+    public void forEach(ChannelingBytesLoop loop) {
+        if(buffIndexStart > buffIndexEnd) {
+            return;
+        }
+
         byte[] byteStream = buffs[buffIndexStart];
 
         // Only one
@@ -27,9 +30,8 @@ public class ChannelingBytesResult {
             return;
         }
 
-
         if (loop.consumer(byteStream, offSetOfFirst, byteStream.length - offSetOfFirst)) {
-            for (int i = buffIndexStart + 1; i < buffIndexEnd - 1; i++) {
+            for (int i = buffIndexStart + 1; i < buffIndexEnd; i++) {
                 byteStream = buffs[i];
                 if (!loop.consumer(byteStream, 0, byteStream.length)) {
                     return;
@@ -96,43 +98,31 @@ public class ChannelingBytesResult {
 
     public byte[] dupBytes() {
         byte[] result = new byte[getTotalBytes()];
-        int numOfWrite = 0, len;
-        byte[] byteStream = buffs[buffIndexStart];
-
-        // Only one
-        if (buffIndexStart == buffIndexEnd) {
-            byteStream = buffs[buffIndexEnd];
-            System.arraycopy(byteStream, offSetOfFirst, result, 0, limitOfEnd - offSetOfFirst);
-            return result;
-        }
-
-
-        len = byteStream.length - offSetOfFirst;
-        System.arraycopy(byteStream, offSetOfFirst, result, 0, len);
-        numOfWrite += len;
-
-
-        for (int i = buffIndexStart + 1; i < buffIndexEnd - 1; i++) {
-            byteStream = buffs[i];
-            len = byteStream.length;
-            System.arraycopy(byteStream, 0, result, numOfWrite, len);
-            numOfWrite += len;
-        }
-
-        byteStream = buffs[buffIndexEnd];
-        System.arraycopy(byteStream, 0, result, numOfWrite, limitOfEnd);
+        final int[] totalWrite = {0};
+        forEach(new ChannelingBytesLoop() {
+            @Override
+            public boolean consumer(byte[] bytes, int offset, int length) {
+                System.arraycopy(bytes, offset, result, totalWrite[0], length);
+                totalWrite[0] += length;
+                return true;
+            }
+        });
         return result;
     }
 
     public int getTotalBytes() {
         if (totalBytes == -1) {
+            if(buffIndexStart > buffIndexEnd) {
+                totalBytes = 0;
+                return totalBytes;
+            }
             if (buffIndexStart == buffIndexEnd) {
                 totalBytes = limitOfEnd - offSetOfFirst;
                 return totalBytes;
             } else {
                 totalBytes = buffs[buffIndexStart].length - offSetOfFirst;
             }
-            for (int i = buffIndexStart + 1; i < buffIndexEnd - 1; i++) {
+            for (int i = buffIndexStart + 1; i < buffIndexEnd; i++) {
                 totalBytes += buffs[i].length;
             }
 

@@ -5,9 +5,9 @@ import com.github.taymindis.nio.channeling.ChannelingSocket;
 
 
 public interface HttpStreamRequestCallback {
-    void headerAccept(ChannelingBytes bytes, ChannelingSocket socket) throws Exception;
+    void headerAccept(byte[] buff, int offset, int length, ChannelingSocket socket) throws Exception;
     void afterHeader(ChannelingSocket socket) throws Exception;
-    void accept(ChannelingBytes bytes, ChannelingSocket socket);
-    void last(ChannelingBytes bytes, ChannelingSocket socket);
+    void accept(byte[] buff, int offset, int length, ChannelingSocket socket);
+    void last(byte[] buff, int offset, int length, ChannelingSocket socket);
     void error(Exception e, ChannelingSocket socket);
 }
