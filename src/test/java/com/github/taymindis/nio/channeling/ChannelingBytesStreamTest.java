@@ -31,7 +31,7 @@ public class ChannelingBytesStreamTest {
 
         int totalBytes = result.getTotalBytes();
 
-        Assertions.assertTrue(totalBytes>0, "Total Bytes should not be 0 !");
+        Assertions.assertTrue(totalBytes > 0, "Total Bytes should not be 0 !");
         System.out.print("\"");
 
         result.forEach(new ChannelingBytesLoop() {
@@ -56,7 +56,7 @@ public class ChannelingBytesStreamTest {
 
         int totalBytes = result.getTotalBytes();
 
-        Assertions.assertTrue(totalBytes>0, "Total Bytes should not be 0 !");
+        Assertions.assertTrue(totalBytes > 0, "Total Bytes should not be 0 !");
         System.out.print("\"");
 
         result.forEach(new ChannelingBytesLoop() {
@@ -73,7 +73,7 @@ public class ChannelingBytesStreamTest {
     @Test
     public void testReverseSearchAfter() {
 
-        ChannelingBytesResult result = channelingBytesStream.reverseSearchBytesAfter("ml(d instanceof ".getBytes(), false);
+        ChannelingBytesResult result = channelingBytesStream.reverseSearchBytesAfter("ml(d instanceof ".getBytes(), true);
 
         Assertions.assertNotNull(result);
 
@@ -91,5 +91,52 @@ public class ChannelingBytesStreamTest {
         });
 
         System.out.print("\"");
+    }
+
+    @Test
+    public void testReverseSearchAfterAndBefore() {
+        ChannelingBytesResult result = channelingBytesStream.reverseSearchBytesBefore("rror?d:Error(a)".getBytes(), false);
+
+        Assertions.assertTrue(getData(result).endsWith("E"));
+
+        result = channelingBytesStream.reverseSearchBytesBefore("HTTP/1.1 200 OK\r\n".getBytes(), false, result);
+        Assertions.assertEquals(getData(result).length(), 0);
+
+
+        result = channelingBytesStream.reverseSearchBytesAfter("ml(d instanceof ".getBytes(), true);
+
+        Assertions.assertTrue(getData(result).startsWith("ml(d instanceof "));
+
+        result = channelingBytesStream.reverseSearchBytesAfter("</html>".getBytes(), false, result);
+        Assertions.assertEquals(getData(result).length(), 0);
+    }
+
+    private void showData(ChannelingBytesResult result) {
+        System.out.print("\"");
+
+        result.forEach(new ChannelingBytesLoop() {
+            @Override
+            public boolean consumer(byte[] bytes, int offset, int length) {
+                System.out.print(new String(bytes, offset, length));
+                return true;
+            }
+        });
+
+        System.out.print("\"");
+        System.out.println("\n\n---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
+        System.out.println("---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
+        System.out.println("---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n\n");
+    }
+
+    private String getData(ChannelingBytesResult result) {
+        StringBuilder a = new StringBuilder();
+        result.forEach(new ChannelingBytesLoop() {
+            @Override
+            public boolean consumer(byte[] bytes, int offset, int length) {
+                a.append(new String(bytes, offset, length));
+                return true;
+            }
+        });
+        return a.toString();
     }
 }

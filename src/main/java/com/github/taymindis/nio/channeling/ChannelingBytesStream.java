@@ -427,16 +427,16 @@ public class ChannelingBytesStream extends OutputStream {
                                 if (indexMatch < 0) {
                                     final ChannelingBytesResult bytesResult;
                                     if (matchAfter) {
-                                        if (!includeSearchBytes) {
-                                            bytesResult = new ChannelingBytesResult(buffs, searchPointI, buffCount - 1, searchPointJ + 1, buffs[buffCount - 1].length);
-                                        } else {
+                                        if (includeSearchBytes) {
                                             bytesResult = new ChannelingBytesResult(buffs, i, buffCount - 1, j, buffs[buffCount - 1].length);
+                                        } else {
+                                            bytesResult = new ChannelingBytesResult(buffs, searchPointI, buffCount - 1, searchPointJ + 1, buffs[buffCount - 1].length);
                                         }
                                     } else {
-                                        if (!includeSearchBytes) {
-                                            bytesResult = new ChannelingBytesResult(buffs, 0, i, 0, j + 1);
+                                        if (includeSearchBytes) {
+                                            bytesResult = new ChannelingBytesResult(buffs, 0, searchPointI, 0, searchPointJ+1);
                                         } else {
-                                            bytesResult = new ChannelingBytesResult(buffs, 0, searchPointI, 0, searchPointJ);
+                                            bytesResult = new ChannelingBytesResult(buffs, 0, i, 0, j);
                                         }
                                     }
 
@@ -460,15 +460,15 @@ public class ChannelingBytesStream extends OutputStream {
 
     public ChannelingBytesResult reverseSearchBytes(byte[] bytes, boolean matchAfter, boolean includeSearchBytes, ChannelingBytesResult basedOnResult) {
         byte[] byteStream;
-        int indexMatch = 0, searchByteLen = bytes.length;
+        int searchByteLen = bytes.length;
+        int indexMatch = searchByteLen- 1;
         int start = basedOnResult.getBuffIndexStart(),
-                i = basedOnResult.getBuffIndexEnd(),
-                sz = basedOnResult.getBuffIndexEnd();
+                i = basedOnResult.getBuffIndexEnd();
         boolean onlyOne = start == i;
         int searchPointI, searchPointJ;
 
         byteStream = buffs[i];
-        for (int j = basedOnResult.getLimitOfEnd(), minLen = onlyOne ? basedOnResult.getOffSetOfFirst() : 0;
+        for (int j = basedOnResult.getLimitOfEnd()-1, minLen = onlyOne ? basedOnResult.getOffSetOfFirst() : 0;
              j >= minLen; j--) {
             RETRY:
             if (bytes[indexMatch] == byteStream[j]) {
@@ -483,16 +483,16 @@ public class ChannelingBytesStream extends OutputStream {
                             if (indexMatch < 0) {
                                 final ChannelingBytesResult bytesResult;
                                 if (matchAfter) {
-                                    if (!includeSearchBytes) {
-                                        bytesResult = new ChannelingBytesResult(buffs, searchPointI, basedOnResult.getBuffIndexEnd(), searchPointJ + 1, basedOnResult.getLimitOfEnd());
-                                    } else {
+                                    if (includeSearchBytes) {
                                         bytesResult = new ChannelingBytesResult(buffs, i, basedOnResult.getBuffIndexEnd(), j, basedOnResult.getLimitOfEnd());
+                                    } else {
+                                        bytesResult = new ChannelingBytesResult(buffs, searchPointI, basedOnResult.getBuffIndexEnd(), searchPointJ + 1, basedOnResult.getLimitOfEnd());
                                     }
                                 } else {
-                                    if (!includeSearchBytes) {
-                                        bytesResult = new ChannelingBytesResult(buffs, basedOnResult.getBuffIndexStart(), i, basedOnResult.getOffSetOfFirst(), j + 1);
+                                    if (includeSearchBytes) {
+                                        bytesResult = new ChannelingBytesResult(buffs, basedOnResult.getBuffIndexStart(), searchPointI, basedOnResult.getOffSetOfFirst(), searchPointJ+1);
                                     } else {
-                                        bytesResult = new ChannelingBytesResult(buffs, basedOnResult.getBuffIndexStart(), searchPointI, basedOnResult.getOffSetOfFirst(), searchPointJ);
+                                        bytesResult = new ChannelingBytesResult(buffs, basedOnResult.getBuffIndexStart(), i, basedOnResult.getOffSetOfFirst(), j);
                                     }
                                 }
                                 return bytesResult;
@@ -530,16 +530,16 @@ public class ChannelingBytesStream extends OutputStream {
                                 if (indexMatch < 0) {
                                     final ChannelingBytesResult bytesResult;
                                     if (matchAfter) {
-                                        if (!includeSearchBytes) {
-                                            bytesResult = new ChannelingBytesResult(buffs, searchPointI, basedOnResult.getBuffIndexEnd(), searchPointJ + 1, basedOnResult.getLimitOfEnd());
-                                        } else {
+                                        if (includeSearchBytes) {
                                             bytesResult = new ChannelingBytesResult(buffs, i, basedOnResult.getBuffIndexEnd(), j, basedOnResult.getLimitOfEnd());
+                                        } else {
+                                            bytesResult = new ChannelingBytesResult(buffs, searchPointI, basedOnResult.getBuffIndexEnd(), searchPointJ + 1, basedOnResult.getLimitOfEnd());
                                         }
                                     } else {
-                                        if (!includeSearchBytes) {
-                                            bytesResult = new ChannelingBytesResult(buffs, basedOnResult.getBuffIndexStart(), i, basedOnResult.getOffSetOfFirst(), j + 1);
+                                        if (includeSearchBytes) {
+                                            bytesResult = new ChannelingBytesResult(buffs, basedOnResult.getBuffIndexStart(), searchPointI, basedOnResult.getOffSetOfFirst(), searchPointJ+1);
                                         } else {
-                                            bytesResult = new ChannelingBytesResult(buffs, basedOnResult.getBuffIndexStart(), searchPointI, basedOnResult.getOffSetOfFirst(), searchPointJ);
+                                            bytesResult = new ChannelingBytesResult(buffs, basedOnResult.getBuffIndexStart(), i, basedOnResult.getOffSetOfFirst(), j);
                                         }
                                     }
                                     return bytesResult;
@@ -550,7 +550,7 @@ public class ChannelingBytesStream extends OutputStream {
                             }
                         }
                         if (i != start) {
-                            j = buffs[i - 1].length;
+                            j = buffs[i - 1].length -1;
                         }
                     }
                 }
@@ -573,16 +573,16 @@ public class ChannelingBytesStream extends OutputStream {
                             if (indexMatch < 0) {
                                 final ChannelingBytesResult bytesResult;
                                 if (matchAfter) {
-                                    if (!includeSearchBytes) {
-                                        bytesResult = new ChannelingBytesResult(buffs, searchPointI, basedOnResult.getBuffIndexEnd(), searchPointJ + 1, basedOnResult.getLimitOfEnd());
-                                    } else {
+                                    if (includeSearchBytes) {
                                         bytesResult = new ChannelingBytesResult(buffs, i, basedOnResult.getBuffIndexEnd(), j, basedOnResult.getLimitOfEnd());
+                                    } else {
+                                        bytesResult = new ChannelingBytesResult(buffs, searchPointI, basedOnResult.getBuffIndexEnd(), searchPointJ + 1, basedOnResult.getLimitOfEnd());
                                     }
                                 } else {
-                                    if (!includeSearchBytes) {
-                                        bytesResult = new ChannelingBytesResult(buffs, basedOnResult.getBuffIndexStart(), i, basedOnResult.getOffSetOfFirst(), j + 1);
+                                    if (includeSearchBytes) {
+                                        bytesResult = new ChannelingBytesResult(buffs, basedOnResult.getBuffIndexStart(), searchPointI, basedOnResult.getOffSetOfFirst(), searchPointJ+1);
                                     } else {
-                                        bytesResult = new ChannelingBytesResult(buffs, basedOnResult.getBuffIndexStart(), searchPointI, basedOnResult.getOffSetOfFirst(), searchPointJ);
+                                        bytesResult = new ChannelingBytesResult(buffs, basedOnResult.getBuffIndexStart(), i, basedOnResult.getOffSetOfFirst(), j);
                                     }
                                 }
 
@@ -594,7 +594,7 @@ public class ChannelingBytesStream extends OutputStream {
                         }
                     }
                     if (i != start) {
-                        j = buffs[i - 1].length;
+                        j = buffs[i - 1].length - 1;
                     }
                 }
             }
