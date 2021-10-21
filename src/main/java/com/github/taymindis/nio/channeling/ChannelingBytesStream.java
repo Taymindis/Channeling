@@ -4,13 +4,14 @@ package com.github.taymindis.nio.channeling;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 public class ChannelingBytesStream extends OutputStream {
 
-    private final byte[][] buffs;
+    private byte[][] buffs;
     private int totalBytes = 0, buffCount = 0;
     private static final int DEFAULT_NUM_OF_WRITE = 256;
-    private final int capacity;
+    private int capacity;
     private boolean closed = false;
     private ChannelingBytesOverConsumer overWriteConsumer = new ChannelingBytesOverFIFOConsumer() {
         @Override
@@ -39,11 +40,12 @@ public class ChannelingBytesStream extends OutputStream {
     }
 
     private void addBuff(byte[] bytes) {
-        if (buffCount < capacity) {
-            buffs[buffCount++] = bytes;
-        } else {
-            overWriteConsumer.process(buffs, buffCount++, bytes);
+        if (buffCount >= capacity) {
+            capacity *= 2;
+            buffs = Arrays.copyOfRange(buffs, 0, capacity);
+//            overWriteConsumer.process(buffs, buffCount++, bytes);
         }
+        buffs[buffCount++] = bytes;
     }
 
     @Override

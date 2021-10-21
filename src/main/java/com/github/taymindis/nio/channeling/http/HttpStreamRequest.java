@@ -97,11 +97,6 @@ public class HttpStreamRequest implements HttpRequest {
             if (channelingBytesStream.size() > 0) {
 //                byte[] currBytes = currProcessingStream.toByteArray();
                 if ( findHeaders() ) {
-
-
-
-
-
                     ChannelingBytes bytes = new ChannelingBytes();
                     while(headerResult.read(bytes)) {
                         streamChunked.headerAccept(bytes.getBuff(), bytes.getOffset(), bytes.getLength(), channelingSocket);
@@ -137,8 +132,6 @@ public class HttpStreamRequest implements HttpRequest {
                             break;
                     }
                 }
-
-
             }
             eagerRead(channelingSocket, this::massageHeader);
         } catch (Exception e) {

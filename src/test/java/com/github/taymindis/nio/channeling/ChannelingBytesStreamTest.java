@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 
 public class ChannelingBytesStreamTest {
     private static Logger logger = LoggerFactory.getLogger(ChannelingBytesStreamTest.class);
-    ChannelingBytesStream channelingBytesStream = new ChannelingBytesStream();
+    ChannelingBytesStream channelingBytesStream = new ChannelingBytesStream(1);
 
     @BeforeEach
     public void beforeEach() throws Exception {
@@ -39,7 +39,7 @@ public class ChannelingBytesStreamTest {
     }
 
     @Test
-    public void testReverSearch1() {
+    public void testReverseSearch1() {
 
         ChannelingBytesResult result = channelingBytesStream.reverseSearchBytesAfter("</body></html>".getBytes(), true);
 
@@ -58,7 +58,7 @@ public class ChannelingBytesStreamTest {
     }
 
     @Test
-    public void testReverSearch2() {
+    public void testReverseSearch2() {
         ChannelingBytesResult result = channelingBytesStream.reverseSearchBytesBefore("rror?d:Error(a)".getBytes(), false);
 
         Assertions.assertTrue(getData(result).endsWith("E"));
