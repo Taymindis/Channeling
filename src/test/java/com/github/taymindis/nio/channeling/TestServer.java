@@ -241,51 +241,38 @@ public class TestServer {
             // TODO Please do the next write after write and then, if not sure, follow transfer chunked mock result
             httpRequest.execute(new HttpStreamRequestCallback() {
 
-//                private HttpStreamResponseHandler responseHandler;
-//                private int nextChunkedLen = -1, accLen = 0;
-//                private Deque<byte[]> chunkQueue = new ArrayDeque<>();
-
                 @Override
-                public void header(String headersContent, ChannelingSocket socket) throws Exception {
-//                    byte[] headerBytes =
-//                            String.format("HTTP/1.1 200 OK\r\n" +
-//                                    "Content-Type: text/html\r\n" +
-//                                    "Transfer-Encoding: chunked\r\n\r\n" +
-//                                    "%d\r\n", chunked.length)
-//                                    .getBytes();
-
-                    if(false) {
-                        Map<String, String> headerMap = HttpMessageHelper.massageHeaderContentToHeaderMap(headersContent, false);
-
-                        headerMap.put("Proxy-By", CHANNELING_VERSION);
-
-//                    if (headerMap.get("server").contains("yahoo.com")) {
-//                        System.out.println(headersContent);
-//                    }
-
-//                    if (headerMap.containsKey("Content-Encoding")) {
-//                        headerMap.put("Transfer-Encoding", "chunked");
-//                        headerMap.remove("Content-Length");
-//                        responseHandler = new DefaultTransferEncodingStreamResponseHandler(callback);
-//                    } else if (headerMap.containsKey("Content-Length")) {
-//                        responseHandler = new DefaultContentLengthStreamResponseHandler(callback);
-//                    } else if (headerMap.containsKey("Transfer-Encoding")) {
-//                        responseHandler = new DefaultTransferEncodingStreamResponseHandler(callback);
-//                    } else {
-//                        throw new IllegalStateException("Response Type is not support");
-//                    }
-
-                        String statusLine = headerMap.getOrDefault("status", "HTTP/1.1 200 OK");
-//                    System.out.println(HttpMessageHelper.headerToString(headerMap, statusLine));
-                        byte[] headerBytes = HttpMessageHelper.headerToBytes(headerMap, statusLine);
-//                    debugStream.write(headerBytes);
-                    } callback.streamWrite(ByteBuffer.wrap(headersContent.getBytes()), clientSocket -> {
+                public void headerAccept(byte[] chunked, int offset, int length, ChannelingSocket socket) throws Exception {
+                    callback.streamWrite(ByteBuffer.wrap(chunked, offset, length), clientSocket -> {
                         // TODO Continue
                     });
                 }
 
                 @Override
-                public void accept(byte[] chunked, ChannelingSocket socket) {
+                public void afterHeader(ChannelingSocket socket) throws Exception {
+
+                    Map<String, String> headerMap = new HashMap<>();
+
+                    headerMap.put("Proxy-By", CHANNELING_VERSION);
+
+//                    String statusLine = headerMap.getOrDefault("status", "HTTP/1.1 200 OK");
+//                    System.out.println(HttpMessageHelper.headerToString(headerMap, statusLine));
+//                    byte[] headerBytes = HttpMessageHelper.headerToBytes(headerMap, statusLine);
+//                    debugStream.write(headerBytes);
+
+                    byte[] afterHeaderBytes = HttpMessageHelper.headerToBytes(headerMap);
+
+                    callback.streamWrite(ByteBuffer.wrap(afterHeaderBytes), clientSocket -> {
+                        // TODO Continue
+                    });
+                    callback.streamWrite(ByteBuffer.wrap("\r\n\r\n".getBytes()), clientSocket -> {
+                        // TODO Continue
+                    });
+                }
+
+                @Override
+                public void accept(byte[] chunked, int offset, int length, ChannelingSocket socket) {
+
                     try {
 //                        System.out.println(new String(chunked));
 //                        System.out.println(loading.incrementAndGet());
@@ -318,7 +305,7 @@ public class TestServer {
 ////                            responseHandler.accept(BytesHelper.subBytes(chunked, 0, nextChunkedLen - (accLen-chunked.length)), socket);
 //                        }
 
-                        callback.streamWrite(ByteBuffer.wrap(chunked), clientSocket -> {
+                        callback.streamWrite(ByteBuffer.wrap(chunked, offset, length), clientSocket -> {
                             // TODO Continue
                         });
 
@@ -328,7 +315,7 @@ public class TestServer {
                 }
 
                 @Override
-                public void last(byte[] chunked, ChannelingSocket socket) {
+                public void last(byte[] chunked, int offset, int length, ChannelingSocket socket) {
 
                     try {
 //                        debugStream.write(chunked);
@@ -340,7 +327,7 @@ public class TestServer {
 //                        outputStream.write(chunked);
 //
 //                        responseHandler.last(outputStream.toByteArray(), socket);
-                        callback.streamWrite(ByteBuffer.wrap(chunked), TestServer.this::close);
+                        callback.streamWrite(ByteBuffer.wrap(chunked, offset, length), TestServer.this::close);
 
 //                        System.out.println("lxxxxxt=" + new String(chunked));
 

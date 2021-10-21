@@ -283,17 +283,22 @@ public class TestHttpBuilder {
 
             streamRequest.execute(new HttpStreamRequestCallback() {
                 @Override
-                public void header(String headersContent, ChannelingSocket socket) throws IOException {
+                public void headerAccept(byte[] chunked, int offset, int length, ChannelingSocket socket) throws IOException {
                     /** DO NOTHING **/
                 }
 
                 @Override
-                public void accept(byte[] chunked, ChannelingSocket socket) {
-                    /** DO NOTHING **/
+                public void afterHeader(ChannelingSocket socket) throws Exception {
+
                 }
 
                 @Override
-                public void last(byte[] chunked, ChannelingSocket socket) {
+                public void accept(byte[] chunked, int offset, int length, ChannelingSocket socket) {
+
+                }
+
+                @Override
+                public void last(byte[] chunked, int offset, int length, ChannelingSocket socket) {
                     String result = new String(chunked, StandardCharsets.UTF_8);
 //                    Assertions.assertTrue(result.contains("</noscript>\r\n</html>"), result);
                     boolean success = result.contains("</body></html>");
@@ -305,6 +310,7 @@ public class TestHttpBuilder {
                     results.add(result.substring(0, Math.min(result.length(), 100)));
                     countDownLatch.countDown();
                 }
+
 
                 @Override
                 public void error(Exception e, ChannelingSocket socket) {

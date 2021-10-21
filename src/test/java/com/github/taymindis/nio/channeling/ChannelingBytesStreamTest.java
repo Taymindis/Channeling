@@ -6,8 +6,6 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-
 public class ChannelingBytesStreamTest {
     private static Logger logger = LoggerFactory.getLogger(ChannelingBytesStreamTest.class);
     ChannelingBytesStream channelingBytesStream = new ChannelingBytesStream();
@@ -20,81 +18,47 @@ public class ChannelingBytesStreamTest {
         channelingBytesStream.write(ConstantTestBytes.LAST.getBytes());
     }
 
-    @Test
-    public void testSearchBeforeAndAfter() throws IOException, InterruptedException {
-
-        ChannelingBytesResult result = channelingBytesStream.searchBytesAfter("\r\n\r\n".getBytes(), true);
-
-        Assertions.assertNotNull(result);
-
-        result = channelingBytesStream.searchBytesBefore("Copyright The Closure Library Authors.\r\n".getBytes(), true, result);
-
-        int totalBytes = result.getTotalBytes();
-
-        Assertions.assertTrue(totalBytes > 0, "Total Bytes should not be 0 !");
-        System.out.print("\"");
-
-        result.forEach(new ChannelingBytesLoop() {
-            @Override
-            public boolean consumer(byte[] bytes, int offset, int length) {
-
-                System.out.print(new String(bytes, offset, length));
-
-                return true;
-            }
-        });
-        System.out.print("\"");
-
-    }
 
     @Test
-    public void testSearchAfter() {
-
+    public void testSearch() {
         ChannelingBytesResult result = channelingBytesStream.searchBytesAfter("\r\n\r\n".getBytes(), false);
 
         Assertions.assertNotNull(result);
+        Assertions.assertTrue(getData(result).startsWith("<!doctype html><html itemscope="));
 
-        int totalBytes = result.getTotalBytes();
+        result = channelingBytesStream.searchBytesBefore("\r\n\r\n".getBytes(), true);
 
-        Assertions.assertTrue(totalBytes > 0, "Total Bytes should not be 0 !");
-        System.out.print("\"");
+        Assertions.assertTrue(getData(result).startsWith("HTTP/1.1 200 OK\r\n"));
+        Assertions.assertTrue(getData(result).endsWith("\r\n\r\n"));
 
-        result.forEach(new ChannelingBytesLoop() {
-            @Override
-            public boolean consumer(byte[] bytes, int offset, int length) {
-                System.out.print(new String(bytes, offset, length));
-                return true;
-            }
-        });
+        result = channelingBytesStream.searchBytesAfter("X-XSS-Protection: ".getBytes(), false, result);
 
-        System.out.print("\"");
+        Assertions.assertTrue(getData(result).startsWith("0\r\n"));
+
+        Assertions.assertTrue(getData(result).endsWith("Content-Type: text/html; charset=ISO-8859-1\r\n\r\n"));
     }
 
     @Test
-    public void testReverseSearchAfter() {
+    public void testReverSearch1() {
 
-        ChannelingBytesResult result = channelingBytesStream.reverseSearchBytesAfter("ml(d instanceof ".getBytes(), true);
+        ChannelingBytesResult result = channelingBytesStream.reverseSearchBytesAfter("</body></html>".getBytes(), true);
 
         Assertions.assertNotNull(result);
 
         int totalBytes = result.getTotalBytes();
 
-//        Assertions.assertTrue(totalBytes>0, "Total Bytes should not be 0 !");
-        System.out.print("\"");
+        Assertions.assertEquals(totalBytes, "</body></html>".getBytes().length);
 
-        result.forEach(new ChannelingBytesLoop() {
-            @Override
-            public boolean consumer(byte[] bytes, int offset, int length) {
-                System.out.print(new String(bytes, offset, length));
-                return true;
-            }
-        });
+        result = channelingBytesStream.reverseSearchBytesBefore("</html>".getBytes(), true, result);
 
-        System.out.print("\"");
+        Assertions.assertEquals(result.getTotalBytes(), "</body></html>".getBytes().length);
+
+        showData(result);
+
     }
 
     @Test
-    public void testReverseSearchAfterAndBefore() {
+    public void testReverSearch2() {
         ChannelingBytesResult result = channelingBytesStream.reverseSearchBytesBefore("rror?d:Error(a)".getBytes(), false);
 
         Assertions.assertTrue(getData(result).endsWith("E"));
