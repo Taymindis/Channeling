@@ -65,6 +65,31 @@ public class ChannelingBytesResult {
         return false;
     }
 
+
+    public boolean readUntilLast(ChannelingBytes bytes) {
+        if(readIdx <= buffIndexEnd) {
+            if (readIdx == buffIndexStart) {
+                bytes.setBuff(buffs[buffIndexStart]);
+                bytes.setOffset(offSetOfFirst);
+                if (readIdx == buffIndexEnd) {
+                    bytes.setLength(limitOfEnd - offSetOfFirst);
+                }
+            } else {
+                byte[] buff = buffs[readIdx];
+                bytes.setBuff(buff);
+                bytes.setOffset(0);
+                if (readIdx == buffIndexEnd) {
+                    bytes.setLength(limitOfEnd);
+                } else {
+                    bytes.setLength(buff.length);
+                }
+            }
+            readIdx++;
+            return readIdx <= buffIndexEnd;
+        }
+        return false;
+    }
+
     public void resetRead() {
         readIdx = buffIndexStart;
     }
