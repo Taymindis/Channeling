@@ -285,11 +285,9 @@ public class TestHttpBuilder {
                 @Override
                 public void headerAccept(byte[] chunked, int offset, int length, ChannelingSocket socket) throws IOException {
                     /** DO NOTHING **/
-                }
-
-                @Override
-                public void afterHeader(ChannelingSocket socket) throws Exception {
-
+                }   @Override
+                public void postHeader(byte[] chunked, int offset, int length, ChannelingSocket socket) throws IOException {
+                    /** DO NOTHING **/
                 }
 
                 @Override

@@ -3,12 +3,14 @@ package com.github.taymindis.nio.channeling;
 public class ChannelingBytesResult {
 
     private final byte[][] buffs;
+    private final ChannelingBytesStream stream;
     private int buffIndexStart, buffIndexEnd;
     private int offSetOfFirst, limitOfEnd;
     private int readIdx;
     private int totalBytes = -1;
 
-    public ChannelingBytesResult(byte[][] buffs, int buffIndexStart, int buffIndexEnd, int offSetOfFirst, int limitOfEnd) {
+    public ChannelingBytesResult(ChannelingBytesStream stream, byte[][] buffs, int buffIndexStart, int buffIndexEnd, int offSetOfFirst, int limitOfEnd) {
+        this.stream = stream;
         this.buffs = buffs;
         this.readIdx = this.buffIndexStart = buffIndexStart;
         this.buffIndexEnd = buffIndexEnd;
@@ -17,7 +19,7 @@ public class ChannelingBytesResult {
     }
 
     public void forEach(ChannelingBytesLoop loop) {
-        if(buffIndexStart > buffIndexEnd) {
+        if (buffIndexStart > buffIndexEnd) {
             return;
         }
 
@@ -44,12 +46,15 @@ public class ChannelingBytesResult {
     }
 
     public boolean read(ChannelingBytes bytes) {
-        if(readIdx <= buffIndexEnd) {
+        if (readIdx <= buffIndexEnd) {
             if (readIdx == buffIndexStart) {
-                bytes.setBuff(buffs[buffIndexStart]);
+                byte[] buff = buffs[buffIndexStart];
+                bytes.setBuff(buff);
                 bytes.setOffset(offSetOfFirst);
                 if (readIdx == buffIndexEnd) {
                     bytes.setLength(limitOfEnd - offSetOfFirst);
+                } else {
+                    bytes.setLength(buff.length - offSetOfFirst);
                 }
             } else {
                 byte[] buff = buffs[readIdx];
@@ -69,26 +74,12 @@ public class ChannelingBytesResult {
 
 
     public boolean readUntilLast(ChannelingBytes bytes) {
-        if(readIdx <= buffIndexEnd) {
-            if (readIdx == buffIndexStart) {
-                bytes.setBuff(buffs[buffIndexStart]);
-                bytes.setOffset(offSetOfFirst);
-                if (readIdx == buffIndexEnd) {
-                    bytes.setLength(limitOfEnd - offSetOfFirst);
-                }
-            } else {
-                byte[] buff = buffs[readIdx];
-                bytes.setBuff(buff);
-                bytes.setOffset(0);
-                if (readIdx == buffIndexEnd) {
-                    bytes.setLength(limitOfEnd);
-                } else {
-                    bytes.setLength(buff.length);
-                }
-            }
-            readIdx++;
+        if (read(bytes)) {
             return readIdx <= buffIndexEnd;
         }
+        bytes.setBuff(null);
+        bytes.setOffset(0);
+        bytes.setLength(0);
         return false;
     }
 
@@ -112,7 +103,7 @@ public class ChannelingBytesResult {
 
     public int getTotalBytes() {
         if (totalBytes == -1) {
-            if(buffIndexStart > buffIndexEnd) {
+            if (buffIndexStart > buffIndexEnd) {
                 totalBytes = 0;
                 return totalBytes;
             }
@@ -132,21 +123,29 @@ public class ChannelingBytesResult {
     }
 
     /**
-     flip the other half
-     * @param stream
+     * Flip the bytes to forward
+     *
+     * @return flipped Result
      */
-    public void flip(ChannelingBytesStream stream) {
-        if(this.buffIndexStart == stream.size()-1) {
-            this.limitOfEnd = buffs[buffIndexStart].length - limitOfEnd;
-        } else {
-            this.limitOfEnd = buffs[stream.size()-1].length;
-        }
+    public ChannelingBytesResult flipForward() {
+        int flipBuffIndexStart = this.buffIndexEnd,
+                flipBuffIndexEnd = stream.getTotalBuffers() - 1,
+                flipOffSetOfFirst = this.limitOfEnd,
+                flipLimitOfEnd = buffs[flipBuffIndexEnd].length;
+        return new ChannelingBytesResult(stream, buffs, flipBuffIndexStart, flipBuffIndexEnd, flipOffSetOfFirst, flipLimitOfEnd);
+    }
 
-        this.buffIndexStart = buffIndexEnd;
-        this.buffIndexEnd = stream.size();
-        this.offSetOfFirst = limitOfEnd;
-
-
+    /**
+     * Flip the bytes to backward
+     *
+     * @return flipped Result
+     */
+    public ChannelingBytesResult flipBackward() {
+        int flipBuffIndexStart = 0,
+                flipBuffIndexEnd = this.buffIndexStart,
+                flipOffSetOfFirst = 0,
+                flipLimitOfEnd = offSetOfFirst;
+        return new ChannelingBytesResult(stream, buffs, flipBuffIndexStart, flipBuffIndexEnd, flipOffSetOfFirst, flipLimitOfEnd);
     }
 
     public int getBuffIndexStart() {

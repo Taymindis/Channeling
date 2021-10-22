@@ -2,7 +2,6 @@ package com.github.taymindis.nio.channeling.http;
 
 import com.github.taymindis.nio.channeling.*;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -18,13 +17,15 @@ public class HttpStreamRequest implements HttpRequest {
     private HttpStreamRequestCallback streamChunked;
     private HttpResponseType responseType;
     private ContentEncodingType contentEncodingType;
-//    private byte[] currConsumedBytes;
+    //    private byte[] currConsumedBytes;
     private boolean hasHeaderOut = false;
     private String reqHeaders = null;
     private static final int NEWLINE_BYTE_LENGTH = "\r\n".getBytes().length;
+    private static final byte[] LAST_CHUNKED_PATTERN = "\r\n0\r\n\r\n".getBytes();
+
 
     private final boolean enableGzipDecompression;
-    private ChannelingBytes previousChunked = new ChannelingBytes(new byte[0], 0, 0);
+//    private ChannelingBytes previousChunked = new ChannelingBytes(new byte[0], 0, 0);
     private ChannelingBytesResult headerResult;
 
     public HttpStreamRequest(ChannelingSocket socket,
@@ -96,44 +97,59 @@ public class HttpStreamRequest implements HttpRequest {
 
             if (channelingBytesStream.size() > 0) {
 //                byte[] currBytes = currProcessingStream.toByteArray();
-                if ( findHeaders() ) {
+                if (findHeaders()) {
                     ChannelingBytes bytes = new ChannelingBytes();
-                    while(headerResult.read(bytes)) {
+                    while (headerResult.readUntilLast(bytes)) {
                         streamChunked.headerAccept(bytes.getBuff(), bytes.getOffset(), bytes.getLength(), channelingSocket);
                     }
 
-                    streamChunked.afterHeader(channelingSocket);
+                    streamChunked.headerAccept(bytes.getBuff(), bytes.getOffset(), bytes.getLength() - "\r\n".getBytes().length,
+                            channelingSocket);
 
-                    headerResult.flip(channelingBytesStream);
+                    streamChunked.postHeader("\r\n".getBytes(), 0, "\r\n".getBytes().length,
+                            channelingSocket);
+
+                    ChannelingBytesResult afterHeaderResult = headerResult.flipForward();
 
                     switch (responseType) {
                         case TRANSFER_CHUNKED:
-                            while(headerResult.read(bytes)) {
-                                processChunked(bytes, channelingSocket);
-                            }
-                            break;
-                        case CONTENT_LENGTH:
-                            if (totalRead >= requiredLength) {
-                                while(headerResult.readUntilLast(bytes)) {
-                                    streamChunked.last(bytes.getBuff(), bytes.getOffset(), bytes.getLength(), channelingSocket);
+                            if (isLastChunked(afterHeaderResult)) {
+                                channelingSocket.noEagerRead();
+                                while (afterHeaderResult.readUntilLast(bytes)) {
+                                    streamChunked.accept(bytes.getBuff(), bytes.getOffset(), bytes.getLength(), channelingSocket);
                                 }
-                                channelingSocket.close(HttpStreamRequest.this::closeAndThen);
-                                return;
+                                streamChunked.last(bytes.getBuff(), bytes.getOffset(), bytes.getLength(), channelingSocket);
+                                channelingSocket.close(this::closeAndThen);
                             } else {
-                                while(headerResult.read(bytes)) {
+                                while (afterHeaderResult.read(bytes)) {
                                     streamChunked.accept(bytes.getBuff(), bytes.getOffset(), bytes.getLength(), channelingSocket);
                                 }
                                 channelingBytesStream.reset();
-                                eagerRead(channelingSocket, HttpStreamRequest.this::massageContentLengthBody);
+                                eagerRead(channelingSocket, this::massageChunkedBody);
                             }
-                            break;
+                            return;
+                        case CONTENT_LENGTH:
+                            if (totalRead >= requiredLength) {
+                                while (afterHeaderResult.readUntilLast(bytes)) {
+                                    streamChunked.accept(bytes.getBuff(), bytes.getOffset(), bytes.getLength(), channelingSocket);
+                                }
+                                streamChunked.last(bytes.getBuff(), bytes.getOffset(), bytes.getLength(), channelingSocket);
+
+                                channelingSocket.close(HttpStreamRequest.this::closeAndThen);
+                            } else {
+                                while (afterHeaderResult.read(bytes)) {
+                                    streamChunked.accept(bytes.getBuff(), bytes.getOffset(), bytes.getLength(), channelingSocket);
+                                }
+                                channelingBytesStream.reset();
+                                eagerRead(channelingSocket, this::massageContentLengthBody);
+                            }
+                            return;
                         case PENDING:
                         case PARTIAL_CONTENT:
-                            break;
+                            eagerRead(channelingSocket, this::massageHeader);
                     }
                 }
             }
-            eagerRead(channelingSocket, this::massageHeader);
         } catch (Exception e) {
             error(channelingSocket, e);
         }
@@ -152,8 +168,18 @@ public class HttpStreamRequest implements HttpRequest {
 //                currConsumedBytes = b;
                 channelingBytesStream.write(b);
                 ChannelingBytes bytes = new ChannelingBytes();
-                while(headerResult.read(bytes)) {
-                    processChunked(bytes, channelingSocket);
+                if (isLastChunked()) {
+                    channelingSocket.noEagerRead();
+                    while (channelingBytesStream.readUntilLast(bytes)) {
+                        streamChunked.accept(bytes.getBuff(), bytes.getOffset(), bytes.getLength(), channelingSocket);
+                    }
+                    streamChunked.last(bytes.getBuff(), bytes.getOffset(), bytes.getLength(), channelingSocket);
+                    channelingSocket.close(this::closeAndThen);
+                } else {
+                    while (channelingBytesStream.read(bytes)) {
+                        streamChunked.accept(bytes.getBuff(), bytes.getOffset(), bytes.getLength(), channelingSocket);
+                    }
+                    eagerRead(channelingSocket, this::massageChunkedBody);
                 }
             } else {
                 eagerRead(channelingSocket, this::massageChunkedBody);
@@ -164,47 +190,37 @@ public class HttpStreamRequest implements HttpRequest {
         }
     }
 
-    /**
-     *
-     * @param channelingSocket
-     * @throws IOException
-     */
-    private void processChunked(ChannelingBytes bytes, ChannelingSocket channelingSocket) throws IOException {
-        if (isLastChunked(bytes)) {
-            channelingSocket.noEagerRead();
-            streamChunked.last(bytes.getBuff(), bytes.getOffset(), bytes.getLength(), channelingSocket);
-            channelingSocket.close(this::closeAndThen);
-        } else {
-            previousChunked = bytes;
-            streamChunked.accept(bytes.getBuff(), bytes.getOffset(), bytes.getLength(), channelingSocket);
-            channelingBytesStream.reset();
-            eagerRead(channelingSocket, this::massageChunkedBody);
-        }
-
+    private boolean isLastChunked(ChannelingBytesResult result) throws IOException {
+        return channelingBytesStream.reverseSearchBytesAfter(LAST_CHUNKED_PATTERN, true, result) != null;
     }
+    private boolean isLastChunked() throws IOException {
 
-    private boolean isLastChunked(ChannelingBytes bytes) throws IOException {
-        int chunkLen = bytes.getLength();
-        byte[] chunked = bytes.getBuff();
-        if(chunkLen >= 7) {
-           return BytesHelper.equals(chunked, "\r\n0\r\n\r\n".getBytes(), bytes.getOffset());
-        } else {
-            int prevLen = previousChunked.getLength();
-            if (prevLen > 0) {
-                byte[] lastAttemptedChunk;
-                if (prevLen <= 7) {
-                    lastAttemptedChunk = new byte[previousChunked.getLength() + chunkLen];
-                    System.arraycopy(previousChunked.getBuff(), previousChunked.getOffset(), lastAttemptedChunk, 0, previousChunked.getLength());
-                    System.arraycopy(chunked, bytes.getOffset(), lastAttemptedChunk, previousChunked.getLength() , chunkLen);
-                } else {
-                    lastAttemptedChunk = new byte[7 + chunkLen];
-                    System.arraycopy(previousChunked.getBuff(),prevLen-7, lastAttemptedChunk, 0, 7);
-                    System.arraycopy(chunked, bytes.getOffset(), lastAttemptedChunk,7 , chunkLen);
-                }
-                return BytesHelper.equals(lastAttemptedChunk, "\r\n0\r\n\r\n".getBytes(), lastAttemptedChunk.length - 7);
-            }
-        }
-        return false;
+        return channelingBytesStream.reverseSearchBytesAfter(LAST_CHUNKED_PATTERN, true) != null;
+
+
+
+
+//        int chunkLen = bytes.getLength();
+//        byte[] chunked = bytes.getBuff();
+//        if(chunkLen >= 7) {
+//           return BytesHelper.equals(chunked, "\r\n0\r\n\r\n".getBytes(), bytes.getOffset());
+//        } else {
+//            int prevLen = previousChunked.getLength();
+//            if (prevLen > 0) {
+//                byte[] lastAttemptedChunk;
+//                if (prevLen <= 7) {
+//                    lastAttemptedChunk = new byte[previousChunked.getLength() + chunkLen];
+//                    System.arraycopy(previousChunked.getBuff(), previousChunked.getOffset(), lastAttemptedChunk, 0, previousChunked.getLength());
+//                    System.arraycopy(chunked, bytes.getOffset(), lastAttemptedChunk, previousChunked.getLength() , chunkLen);
+//                } else {
+//                    lastAttemptedChunk = new byte[7 + chunkLen];
+//                    System.arraycopy(previousChunked.getBuff(),prevLen-7, lastAttemptedChunk, 0, 7);
+//                    System.arraycopy(chunked, bytes.getOffset(), lastAttemptedChunk,7 , chunkLen);
+//                }
+//                return BytesHelper.equals(lastAttemptedChunk, "\r\n0\r\n\r\n".getBytes(), lastAttemptedChunk.length - 7);
+//            }
+//        }
+//        return false;
     }
 
 //    public void eagerChunkBodyLen(ChannelingSocket channelingSocket) {
@@ -282,21 +298,20 @@ public class HttpStreamRequest implements HttpRequest {
     private boolean findHeaders() {
         if (bodyOffset == -1) {
 
-            headerResult = channelingBytesStream.searchBytesBefore("\r\n\r\n".getBytes(), false);
+            headerResult = channelingBytesStream.searchBytesBefore("\r\n\r\n".getBytes(), true);
 
-            if(headerResult == null) {
+            if (headerResult == null) {
                 return false;
             }
-            bodyOffset = headerResult.getTotalBytes() + "\r\n\r\n".getBytes().length;
+            bodyOffset = headerResult.getTotalBytes();
 
             if (responseType == HttpResponseType.PENDING || contentEncodingType == ContentEncodingType.PENDING) {
-                ChannelingBytesResult contentLengthResult;
+                String headers = getData(headerResult).toUpperCase();
 
-                if(channelingBytesStream.searchBytesAfter("transfer-encoding:".getBytes(), false, headerResult) != null) {
+                if (headers.contains("TRANSFER-ENCODING:")) {
                     responseType = HttpResponseType.TRANSFER_CHUNKED;
-                } else if((contentLengthResult = channelingBytesStream.searchBytesAfter("content-length:".getBytes(), false, headerResult)) != null) {
-                    contentLengthResult = channelingBytesStream.searchBytesBefore("\r\n".getBytes(), false, contentLengthResult);
-                    String contentLength = new String(contentLengthResult.dupBytes());
+                } else if (headers.contains("CONTENT-LENGTH:")) {
+                    String contentLength = headers.split("CONTENT-LENGTH:", 2)[1].split("\\r?\\n")[0];
                     requiredLength = Integer.parseInt(contentLength.trim());
                     requiredLength += bodyOffset;
                     responseType = HttpResponseType.CONTENT_LENGTH;
@@ -305,7 +320,7 @@ public class HttpStreamRequest implements HttpRequest {
                     responseType = HttpResponseType.CONTENT_LENGTH;
                 }
 
-                if (channelingBytesStream.searchBytesAfter("content-encoding: gzip".getBytes(), false, headerResult) != null) {
+                if (headers.contains("CONTENT-ENCODING: GZIP")) {
                     contentEncodingType = ContentEncodingType.GZIP;
                 } else if (contentEncodingType == ContentEncodingType.PENDING) {
                     contentEncodingType = ContentEncodingType.OTHER;
@@ -367,5 +382,17 @@ public class HttpStreamRequest implements HttpRequest {
 
     public void setTotalWrite(int totalWrite) {
         this.totalWrite = totalWrite;
+    }
+
+    private String getData(ChannelingBytesResult result) {
+        StringBuilder a = new StringBuilder();
+        result.forEach(new ChannelingBytesLoop() {
+            @Override
+            public boolean consumer(byte[] bytes, int offset, int length) {
+                a.append(new String(bytes, offset, length));
+                return true;
+            }
+        });
+        return a.toString();
     }
 }

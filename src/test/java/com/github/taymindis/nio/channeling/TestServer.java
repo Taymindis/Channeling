@@ -33,11 +33,11 @@ public class TestServer {
     List<String> proxiedTest = List.of(
 //                "http://mygab.crmxs.com/"
 //                ,
-            "http://localhost/"
-            ,
-//            "https://www.google.com.sg/"
+//            "http://localhost/"
 //            ,
-            "https://sg.yahoo.com/?p=us"
+            "https://www.google.com.sg/"
+//            ,
+//            "https://sg.yahoo.com/?p=us"
     );
 
     @BeforeEach
@@ -174,7 +174,7 @@ public class TestServer {
                     if (responHeaders.containsKey("Content-Encoding")) {
                         responHeaders.remove("Content-Encoding");
                     } else {
-//                        System.out.println("asd");
+//                        DEBUG_INFO("asd");
 
                     }
 
@@ -246,36 +246,40 @@ public class TestServer {
                     callback.streamWrite(ByteBuffer.wrap(chunked, offset, length), clientSocket -> {
                         // TODO Continue
                     });
+                    DEBUG_INFO("HEADER========\n" + new String(chunked, offset, length));
+
                 }
-
                 @Override
-                public void afterHeader(ChannelingSocket socket) throws Exception {
-
+                public void postHeader(byte[] chunked, int offset, int length, ChannelingSocket socket) throws Exception {
+         
                     Map<String, String> headerMap = new HashMap<>();
 
                     headerMap.put("Proxy-By", CHANNELING_VERSION);
-
-//                    String statusLine = headerMap.getOrDefault("status", "HTTP/1.1 200 OK");
-//                    System.out.println(HttpMessageHelper.headerToString(headerMap, statusLine));
-//                    byte[] headerBytes = HttpMessageHelper.headerToBytes(headerMap, statusLine);
-//                    debugStream.write(headerBytes);
-
-                    byte[] afterHeaderBytes = HttpMessageHelper.headerToBytes(headerMap);
-
-                    callback.streamWrite(ByteBuffer.wrap(afterHeaderBytes), clientSocket -> {
+//
+////                    String statusLine = headerMap.getOrDefault("status", "HTTP/1.1 200 OK");
+////                    DEBUG_INFO(HttpMessageHelper.headerToString(headerMap, statusLine));
+////                    byte[] headerBytes = HttpMessageHelper.headerToBytes(headerMap, statusLine);
+////                    debugStream.write(headerBytes);
+//
+                    byte[] addedOnHeaders = HttpMessageHelper.headerToBytes(headerMap);
+//
+                    callback.streamWrite(ByteBuffer.wrap(addedOnHeaders), clientSocket -> {
                         // TODO Continue
                     });
-                    callback.streamWrite(ByteBuffer.wrap("\r\n\r\n".getBytes()), clientSocket -> {
-                        // TODO Continue
-                    });
+                    
+//                    callback.streamWrite(ByteBuffer.wrap(chunked, offset, length), clientSocket -> {
+//                        // TODO Continue
+//                    });
+                    DEBUG_INFO("HEADER LAST========\n" + new String(chunked, offset, length));
+
                 }
 
                 @Override
                 public void accept(byte[] chunked, int offset, int length, ChannelingSocket socket) {
 
                     try {
-//                        System.out.println(new String(chunked));
-//                        System.out.println(loading.incrementAndGet());
+//                        DEBUG_INFO(new String(chunked));
+//                        DEBUG_INFO(loading.incrementAndGet());
 //                        debugStream.write(chunked);
 //                        if (nextChunkedLen == -1) {
 //                            String[] lenAndBody = new String(chunked).split("\\r?\\n", 2);
@@ -308,6 +312,7 @@ public class TestServer {
                         callback.streamWrite(ByteBuffer.wrap(chunked, offset, length), clientSocket -> {
                             // TODO Continue
                         });
+                        DEBUG_INFO("PROCESS========\n" + new String(chunked, offset, length));
 
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -329,7 +334,7 @@ public class TestServer {
 //                        responseHandler.last(outputStream.toByteArray(), socket);
                         callback.streamWrite(ByteBuffer.wrap(chunked, offset, length), TestServer.this::close);
 
-//                        System.out.println("lxxxxxt=" + new String(chunked));
+                        DEBUG_INFO("LAST========\n" + new String(chunked, offset, length));
 
 
 //                        String closingChunked;
@@ -342,7 +347,7 @@ public class TestServer {
 //                        } else {
 //                            chunked = BytesHelper.subBytes(chunked, 0, chunked.length-5);
 //
-//                            System.out.println(new String(chunked));
+//                            DEBUG_INFO(new String(chunked));
 //                            if (BytesHelper.equals(chunked, "\r\n".getBytes(), chunked.length-2)) {
 //                                chunked = BytesHelper.subBytes(chunked, 0, chunked.length-2);
 //                                closingChunked = "\r\n0\r\n\r\n";
@@ -380,6 +385,10 @@ public class TestServer {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private void DEBUG_INFO(String s) {
+//        System.out.println(s);
     }
 
 

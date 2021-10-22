@@ -75,6 +75,61 @@ public class ChannelingBytesStreamTest {
         Assertions.assertEquals(getData(result).length(), 0);
     }
 
+    @Test
+    public void testFlip() {
+        ChannelingBytesResult result = channelingBytesStream.searchBytesAfter("\r\n\r\n".getBytes(), false);
+
+        Assertions.assertNotNull(result);
+        Assertions.assertTrue(getData(result).startsWith("<!doctype html><html itemscope="));
+
+        ChannelingBytesResult flippedResult = result.flipBackward();
+
+        Assertions.assertTrue(getData(flippedResult).startsWith("HTTP/1.1 200 OK\r\n"));
+        Assertions.assertTrue(getData(flippedResult).endsWith("\r\n\r\n"));
+
+        flippedResult = flippedResult.flipForward();
+
+        Assertions.assertTrue(getData(flippedResult).startsWith("<!doctype html><html itemscope="));
+        Assertions.assertTrue(getData(flippedResult).endsWith("</body></html>"));
+
+
+
+    }
+
+    @Test
+    public void testResetRead() {
+        ChannelingBytesResult result = channelingBytesStream.searchBytesAfter("\r\n\r\n".getBytes(), false);
+        Assertions.assertNotNull(result);
+        Assertions.assertTrue(getData(result).startsWith("<!doctype html><html itemscope="));
+
+        ChannelingBytes bytes = new ChannelingBytes();
+
+        result.read(bytes);
+
+        Assertions.assertTrue(new String(bytes.getBuff(), bytes.getOffset(), bytes.getLength()).startsWith("<!doctype html>"));
+
+        result.resetRead();
+
+        result.read(bytes);
+
+        Assertions.assertTrue(new String(bytes.getBuff(), bytes.getOffset(), bytes.getLength()).startsWith("<!doctype html>"));
+
+        result.read(bytes);
+
+        Assertions.assertFalse(new String(bytes.getBuff(), bytes.getOffset(), bytes.getLength()).startsWith("<!doctype html>"));
+
+
+    }
+    @Test
+    public void testReset() {
+        ChannelingBytesResult result = channelingBytesStream.searchBytesAfter("\r\n\r\n".getBytes(), false);
+        Assertions.assertNotNull(result);
+        Assertions.assertTrue(getData(result).startsWith("<!doctype html><html itemscope="));
+        channelingBytesStream.reset();
+        result = channelingBytesStream.searchBytesAfter("\r\n\r\n".getBytes(), false);
+        Assertions.assertNull(result);
+    }
+
     private void showData(ChannelingBytesResult result) {
         System.out.print("\"");
 
