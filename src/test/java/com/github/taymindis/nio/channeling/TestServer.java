@@ -33,11 +33,11 @@ public class TestServer {
     List<String> proxiedTest = List.of(
 //                "http://mygab.crmxs.com/"
 //                ,
-//            "http://localhost/"
-//            ,
+            "http://localhost/"
+            ,
             "https://www.google.com.sg/"
-//            ,
-//            "https://sg.yahoo.com/?p=us"
+            ,
+            "https://sg.yahoo.com/?p=us"
     );
 
     @BeforeEach
@@ -208,7 +208,6 @@ public class TestServer {
 
     private void proxyStreamHandler(HttpRequestMessage requestMessage, ResponseCallback callback, String proxyTo) {
         try {
-
             URI uri = new URI(proxyTo);
             String host = uri.getHost();
             boolean isSSL = uri.getScheme().startsWith("https");
@@ -246,11 +245,11 @@ public class TestServer {
                     callback.streamWrite(ByteBuffer.wrap(chunked, offset, length), clientSocket -> {
                         // TODO Continue
                     });
-                    DEBUG_INFO("HEADER========\n" + new String(chunked, offset, length));
+//                    DEBUG_INFO("HEADER========\n" + new String(chunked, offset, length));
 
                 }
                 @Override
-                public void postHeader(byte[] chunked, int offset, int length, ChannelingSocket socket) throws Exception {
+                public void headerEnd(byte[] chunked, int offset, int length, ChannelingSocket socket) throws Exception {
          
                     Map<String, String> headerMap = new HashMap<>();
 
@@ -270,7 +269,7 @@ public class TestServer {
 //                    callback.streamWrite(ByteBuffer.wrap(chunked, offset, length), clientSocket -> {
 //                        // TODO Continue
 //                    });
-                    DEBUG_INFO("HEADER LAST========\n" + new String(chunked, offset, length));
+//                    DEBUG_INFO("HEADER LAST========\n" + new String(chunked, offset, length));
 
                 }
 
@@ -312,7 +311,8 @@ public class TestServer {
                         callback.streamWrite(ByteBuffer.wrap(chunked, offset, length), clientSocket -> {
                             // TODO Continue
                         });
-                        DEBUG_INFO("PROCESS========\n" + new String(chunked, offset, length));
+
+//                        DEBUG_INFO("PROCESS========\n" + new String(chunked, offset, length));
 
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -334,9 +334,7 @@ public class TestServer {
 //                        responseHandler.last(outputStream.toByteArray(), socket);
                         callback.streamWrite(ByteBuffer.wrap(chunked, offset, length), TestServer.this::close);
 
-                        DEBUG_INFO("LAST========\n" + new String(chunked, offset, length));
-
-
+//                        DEBUG_INFO("LAST========\n" + new String(chunked, offset, length));
 //                        String closingChunked;
 //                        int clen = chunked.length;
 //
@@ -388,7 +386,7 @@ public class TestServer {
     }
 
     private void DEBUG_INFO(String s) {
-//        System.out.println(s);
+        System.out.println(s);
     }
 
 

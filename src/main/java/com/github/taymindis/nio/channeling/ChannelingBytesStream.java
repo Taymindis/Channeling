@@ -2,11 +2,10 @@ package com.github.taymindis.nio.channeling;
 
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-public class ChannelingBytesStream extends OutputStream {
+public class ChannelingBytesStream {
 
     private byte[][] buffs;
     private int totalBytes = 0, buffCount = 0;
@@ -29,16 +28,6 @@ public class ChannelingBytesStream extends OutputStream {
         this.capacity = numOfWrite;
     }
 
-    @Override
-    public void write(int b) throws IOException {
-        if (this.closed) {
-            throw new IOException("Stream closed");
-        } else {
-            addBuff(new byte[]{(byte) b});
-            totalBytes++;
-        }
-    }
-
     private void addBuff(byte[] bytes) {
         if (buffCount >= capacity) {
             capacity *= 2;
@@ -48,7 +37,6 @@ public class ChannelingBytesStream extends OutputStream {
         buffs[buffCount++] = bytes;
     }
 
-    @Override
     public void write(byte[] data, int offset, int length) throws IOException {
         if (offset < 0 || offset + length > data.length || length < 0) {
             throw new IndexOutOfBoundsException();
@@ -63,7 +51,6 @@ public class ChannelingBytesStream extends OutputStream {
         totalBytes += length;
     }
 
-    @Override
     public void write(byte[] data) throws IOException {
         if (this.closed) {
             throw new IOException("Stream closed");
@@ -695,7 +682,6 @@ public class ChannelingBytesStream extends OutputStream {
         return toByteArray(totalBytes);
     }
 
-    @Override
     public void close() {
         this.closed = true;
     }

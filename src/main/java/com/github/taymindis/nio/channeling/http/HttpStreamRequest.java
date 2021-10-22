@@ -106,7 +106,7 @@ public class HttpStreamRequest implements HttpRequest {
                     streamChunked.headerAccept(bytes.getBuff(), bytes.getOffset(), bytes.getLength() - "\r\n".getBytes().length,
                             channelingSocket);
 
-                    streamChunked.postHeader("\r\n".getBytes(), 0, "\r\n".getBytes().length,
+                    streamChunked.headerEnd("\r\n".getBytes(), 0, "\r\n".getBytes().length,
                             channelingSocket);
 
                     ChannelingBytesResult afterHeaderResult = headerResult.flipForward();
@@ -146,10 +146,11 @@ public class HttpStreamRequest implements HttpRequest {
                             return;
                         case PENDING:
                         case PARTIAL_CONTENT:
-                            eagerRead(channelingSocket, this::massageHeader);
+                            break;
                     }
                 }
             }
+            eagerRead(channelingSocket, this::massageHeader);
         } catch (Exception e) {
             error(channelingSocket, e);
         }
