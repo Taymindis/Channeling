@@ -73,7 +73,7 @@ public class ChannelingBytesStream2 {
         } else if (this.closed) {
             throw new IOException("Stream closed");
         }
-        return new ChannelingBytes(buffs, 0, length);
+        return new ChannelingBytes(buffs, offset, length);
     }
 
     public ChannelingBytes toChannelingBytes() throws IOException {
@@ -87,11 +87,11 @@ public class ChannelingBytesStream2 {
     public ChannelingBytes readToChannelingBytes(int length) throws IOException {
         int currReadIdx = readIdx;
         readIdx += length;
-        return toChannelingBytes(currReadIdx, size);
+        return toChannelingBytes(currReadIdx, length);
     }
 
     public ChannelingBytes readToChannelingBytes() throws IOException {
-        return readToChannelingBytes(size);
+        return readToChannelingBytes(size - readIdx);
     }
 
     public void close() {
