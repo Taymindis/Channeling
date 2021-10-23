@@ -1,39 +1,91 @@
 package com.github.taymindis.nio.channeling;
+import org.junit.jupiter.api.Assertions;
 import org.openjdk.jmh.annotations.*;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
 
 public class BenchmarkRunner {
+    private static ChannelingBytesStream channelingBytesStream = new ChannelingBytesStream(25600);
+    private static ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    private static ChannelingBytesStream2 channelingBytesStream2 = new ChannelingBytesStream2(25600);
+
     public static void main(String[] args) throws Exception {
+        channelingBytesStream.write(ConstantTestBytes.HEADERSBYTE.getBytes());
+        channelingBytesStream.write(ConstantTestBytes.NEXT1.getBytes());
+        channelingBytesStream.write(ConstantTestBytes.NEXT2.getBytes());
+        channelingBytesStream.write(ConstantTestBytes.LAST.getBytes());
+        channelingBytesStream2.write(ConstantTestBytes.HEADERSBYTE.getBytes());
+        channelingBytesStream2.write(ConstantTestBytes.NEXT1.getBytes());
+        channelingBytesStream2.write(ConstantTestBytes.NEXT2.getBytes());
+        channelingBytesStream2.write(ConstantTestBytes.LAST.getBytes());
+        outputStream.write(ConstantTestBytes.HEADERSBYTE.getBytes());
+        outputStream.write(ConstantTestBytes.NEXT1.getBytes());
+        outputStream.write(ConstantTestBytes.NEXT2.getBytes());
+        outputStream.write(ConstantTestBytes.LAST.getBytes());
         org.openjdk.jmh.Main.main(args);
     }
+//    @Benchmark
+//    @BenchmarkMode(Mode.Throughput)
+//    @Warmup(iterations = 5, time = 100, timeUnit = TimeUnit.MILLISECONDS)
+//    @Measurement(iterations = 5, time = 100, timeUnit = TimeUnit.MILLISECONDS)
+//    public void testMethod() {
+//
+//        byte[] b = ConstantTestBytes.LAST.getBytes();
+//
+//        b = BytesHelper.subBytes(b, 10, 10 + 2555);
+//
+//        assert b.length == 2555;
+//
+//    }
+//    @Benchmark
+//    @BenchmarkMode(Mode.Throughput)
+//    @Warmup(iterations = 5, time = 100, timeUnit = TimeUnit.MILLISECONDS)
+//    @Measurement(iterations = 5, time = 100, timeUnit = TimeUnit.MILLISECONDS)
+//    public void testMethod2() {
+//
+//        byte[] b = ConstantTestBytes.LAST.getBytes();
+//
+//        b = ByteBuffer.wrap(b, 10, 2555).array();
+//
+//        System.out.println(b);
+//
+//        assert b.length == 2555;
+//    }
+
+//    @Benchmark
+//    @BenchmarkMode(Mode.Throughput)
+//    @Warmup(iterations = 5, time = 100, timeUnit = TimeUnit.MILLISECONDS)
+//    @Measurement(iterations = 5, time = 100, timeUnit = TimeUnit.MILLISECONDS)
+//    public void channelingBytesStreamBenchMark() throws IOException {
+////        byte[] result = new byte[channelingBytesStream.size()];
+////        final int[] totalWrite = {0};
+//
+//        byte[] result = channelingBytesStream.toByteArray();
+//
+//        Assertions.assertEquals(result.length, channelingBytesStream.size());
+//
+//    }
+
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
     @Warmup(iterations = 5, time = 100, timeUnit = TimeUnit.MILLISECONDS)
     @Measurement(iterations = 5, time = 100, timeUnit = TimeUnit.MILLISECONDS)
-    public void testMethod() {
-
-        byte[] b = ConstantTestBytes.LAST.getBytes();
-
-        b = BytesHelper.subBytes(b, 10, 10 + 2555);
-
-        assert b.length == 2555;
+    public void outputStreamTest() throws IOException {
+        byte[] result = outputStream.toByteArray();
+        Assertions.assertEquals(result.length, channelingBytesStream.size());
 
     }
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
     @Warmup(iterations = 5, time = 100, timeUnit = TimeUnit.MILLISECONDS)
     @Measurement(iterations = 5, time = 100, timeUnit = TimeUnit.MILLISECONDS)
-    public void testMethod2() {
+    public void channelingBytesStream2BenchMark() throws IOException {
+        ChannelingBytes result = channelingBytesStream2.readToChannelingBytes();
+        Assertions.assertEquals(result.getLength(), channelingBytesStream.size());
 
-        byte[] b = ConstantTestBytes.LAST.getBytes();
-
-        b = ByteBuffer.wrap(b, 10, 2555).array();
-
-        System.out.println(b);
-
-        assert b.length == 2555;
     }
 
 //    public static void main(String[] args) throws RunnerException {

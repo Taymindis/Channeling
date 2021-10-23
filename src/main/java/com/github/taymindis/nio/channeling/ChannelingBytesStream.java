@@ -66,43 +66,6 @@ public class ChannelingBytesStream {
         this.overWriteConsumer = overWriteConsumer;
     }
 
-    //
-//    public byte[] toByteArray(int limit) throws IOException {
-//        if (this.closed) {
-//            throw new IOException("Stream closed");
-//        }
-//        int len;
-//        Iterator<byte[]> iterator = buffQ.iterator();
-//        byte[] streamByte, values = new byte[0];
-//        while (iterator.hasNext()) {
-//            streamByte = iterator.next();
-//            len = streamByte.length;
-//            if(limit > len) {
-//                values = putVal(values, streamByte);
-//                limit-=streamByte.length;
-//            } else if(limit == 0) {
-//                break;
-//            } else {
-//                values = putVal(values, streamByte, 0, limit);
-//                break;
-//            }
-//        }
-//        return values;
-//    }
-//
-//    private byte[] putVal(byte[] values, byte[] streamByte) {
-//        int offset = values.length;
-//        values = Arrays.copyOf(values, offset+streamByte.length);
-//        System.arraycopy(streamByte, 0, values, offset, streamByte.length);
-//        return values;
-//    }
-//
-//    private byte[] putVal(byte[] values, byte[] streamByte, int i, int limit) {
-//        int offset = values.length;
-//        values = Arrays.copyOf(values, offset+limit);
-//        System.arraycopy(streamByte, i, values, offset, limit);
-//        return values;
-//    }
 
     public byte[] toByteArray(int limit) throws IOException {
         if (this.closed) {
@@ -679,7 +642,16 @@ public class ChannelingBytesStream {
     }
 
     public byte[] toByteArray() throws IOException {
-        return toByteArray(totalBytes);
+        if (this.closed) {
+            throw new IOException("Stream closed");
+        }
+        ByteBuffer buff = ByteBuffer.allocate(totalBytes);
+
+        for (int i = 0; i < buffCount; i++) {
+            buff.put(buffs[i]);
+        }
+
+        return buff.array();
     }
 
     public void close() {

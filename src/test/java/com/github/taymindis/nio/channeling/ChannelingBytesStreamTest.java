@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 
 public class ChannelingBytesStreamTest {
     private static Logger logger = LoggerFactory.getLogger(ChannelingBytesStreamTest.class);
-    ChannelingBytesStream channelingBytesStream = new ChannelingBytesStream(30);
+    private ChannelingBytesStream channelingBytesStream = new ChannelingBytesStream(30);
 
     @BeforeEach
     public void beforeEach() throws Exception {
