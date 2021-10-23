@@ -2,6 +2,8 @@ package com.github.taymindis.nio.channeling;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 public class ChannelingBytesStream2 {
@@ -21,7 +23,7 @@ public class ChannelingBytesStream2 {
     }
 
     private void shouldResize(int upComingSize) {
-        while(upComingSize > (capacity - size)) {
+        while (upComingSize > (capacity - size)) {
             capacity *= 2;
         }
         buffs = Arrays.copyOf(buffs, capacity);
@@ -34,7 +36,7 @@ public class ChannelingBytesStream2 {
             throw new IOException("Stream closed");
         }
 
-        if(offset > 0) {
+        if (offset > 0) {
             byteBuffer.position(byteBuffer.position() + offset);
         }
 
@@ -73,32 +75,71 @@ public class ChannelingBytesStream2 {
         } else if (this.closed) {
             throw new IOException("Stream closed");
         }
-        return new ChannelingBytes(buffs, 0, length);
+        return new ChannelingBytes(buffs, offset, length);
     }
 
     public ChannelingBytes toChannelingBytes() throws IOException {
         return toChannelingBytes(0, size);
     }
 
-    public void skipRead(int length) throws IOException {
-        readIdx += length;
-    }
-
     public ChannelingBytes readToChannelingBytes(int length) throws IOException {
         int currReadIdx = readIdx;
         readIdx += length;
-        return toChannelingBytes(currReadIdx, size);
+        return toChannelingBytes(currReadIdx, length);
     }
 
     public ChannelingBytes readToChannelingBytes() throws IOException {
-        return readToChannelingBytes(size);
+        return readToChannelingBytes(size - readIdx);
+    }
+
+
+    public String toString(int offset, int length, Charset charset) throws IOException {
+        if (offset < 0 || offset + length > size || length < 0) {
+            throw new IndexOutOfBoundsException();
+        } else if (this.closed) {
+            throw new IOException("Stream closed");
+        }
+        return new String(buffs, offset, length, charset);
+    }
+
+    public String toString(Charset charset) throws IOException {
+        return toString(0, size, charset);
+    }
+
+    public String toString(int length, Charset charset) throws IOException {
+        return toString(0, size, charset);
+    }
+
+    public String toString(int length) throws IOException {
+        return toString(0, size, StandardCharsets.UTF_8);
+    }
+
+    public String readToString(int length, Charset charset) throws IOException {
+        int currReadIdx = readIdx;
+        readIdx += length;
+        return toString(currReadIdx, length, charset);
+    }
+
+    public String readToString(Charset charset) throws IOException {
+        return readToString(size - readIdx, charset);
+    }
+
+    public String readToString() throws IOException {
+        return readToString(StandardCharsets.UTF_8);
+    }
+    public String readToString(int length) throws IOException {
+        return readToString(length, StandardCharsets.UTF_8);
+    }
+
+    public void skipBytes(int length) throws IOException {
+        readIdx += length;
     }
 
     public void close() {
         this.closed = true;
     }
 
-    public int getCapacity() {
+    public int capacity() {
         return capacity;
     }
 
@@ -118,9 +159,61 @@ public class ChannelingBytesStream2 {
         readIdx = 0;
     }
 
-    public void reset() {
+    private void reset() {
         size = 0;
         readIdx = 0;
+    }
+
+    public int indexOf(byte[] target) {
+        return indexOf(0, target);
+    }
+
+    public int indexOf(int offset, byte[] target) {
+        int i = offset, sz = size - target.length + 1;
+        tryNext:
+        for (; i < sz; i++) {
+            for (int x = 0, y = i; x < target.length; x++, y++) {
+                if (buffs[y] != target[x]) {
+                    continue tryNext;
+                }
+            }
+            return i;
+        }
+        return -1;
+    }
+
+    public int lastIndexOf(byte[] target) {
+        int i = size - 1, minLen = target.length - 1;
+        tryNext:
+        for (; i >= minLen; i--) {
+            for (int x = minLen, y = i; x >= 0; x--, y--) {
+                if (buffs[y] != target[x]) {
+                    continue tryNext;
+                }
+            }
+            return i;
+        }
+        return -1;
+    }
+
+    public boolean endsWith(byte[] target) {
+        int y = size - 1;
+        for (int x = target.length - 1; x >= 0; x--, y--) {
+            if (buffs[y] != target[x]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+    public boolean startsWith(byte[] target) {
+        for (int x = 0, y = 0; x < target.length; x++, y++) {
+            if (buffs[y] != target[x]) {
+                return false;
+            }
+        }
+        return true;
     }
 }
 

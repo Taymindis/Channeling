@@ -248,30 +248,30 @@ public class TestServer {
 //                    DEBUG_INFO("HEADER========\n" + new String(chunked, offset, length));
 
                 }
-                @Override
-                public void headerEnd(byte[] chunked, int offset, int length, ChannelingSocket socket) throws Exception {
-         
-                    Map<String, String> headerMap = new HashMap<>();
-
-                    headerMap.put("Proxy-By", CHANNELING_VERSION);
+//                @Override
+//                public void headerEnd(byte[] chunked, int offset, int length, ChannelingSocket socket) throws Exception {
 //
-////                    String statusLine = headerMap.getOrDefault("status", "HTTP/1.1 200 OK");
-////                    DEBUG_INFO(HttpMessageHelper.headerToString(headerMap, statusLine));
-////                    byte[] headerBytes = HttpMessageHelper.headerToBytes(headerMap, statusLine);
-////                    debugStream.write(headerBytes);
+//                    Map<String, String> headerMap = new HashMap<>();
 //
-                    byte[] addedOnHeaders = HttpMessageHelper.headerToBytes(headerMap);
-//
-                    callback.streamWrite(ByteBuffer.wrap(addedOnHeaders), clientSocket -> {
-                        // TODO Continue
-                    });
-                    
-//                    callback.streamWrite(ByteBuffer.wrap(chunked, offset, length), clientSocket -> {
+//                    headerMap.put("Proxy-By", CHANNELING_VERSION);
+////
+//////                    String statusLine = headerMap.getOrDefault("status", "HTTP/1.1 200 OK");
+//////                    DEBUG_INFO(HttpMessageHelper.headerToString(headerMap, statusLine));
+//////                    byte[] headerBytes = HttpMessageHelper.headerToBytes(headerMap, statusLine);
+//////                    debugStream.write(headerBytes);
+////
+//                    byte[] addedOnHeaders = HttpMessageHelper.headerToBytes(headerMap);
+////
+//                    callback.streamWrite(ByteBuffer.wrap(addedOnHeaders), clientSocket -> {
 //                        // TODO Continue
 //                    });
-//                    DEBUG_INFO("HEADER LAST========\n" + new String(chunked, offset, length));
-
-                }
+//
+////                    callback.streamWrite(ByteBuffer.wrap(chunked, offset, length), clientSocket -> {
+////                        // TODO Continue
+////                    });
+////                    DEBUG_INFO("HEADER LAST========\n" + new String(chunked, offset, length));
+//
+//                }
 
                 @Override
                 public void accept(byte[] chunked, int offset, int length, ChannelingSocket socket) {
