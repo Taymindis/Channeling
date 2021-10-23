@@ -5,24 +5,28 @@ import com.github.taymindis.nio.channeling.BytesHelper;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 
 public class ChannellingBaos extends OutputStream {
 
-    private final List<byte[]> buffQ = new LinkedList<>();
+    private final Queue<byte[]> buffQ;
     private int totalBytes = 0;
     private boolean closed = false;
+
+    public ChannellingBaos() {
+        this.buffQ = new ArrayDeque<>();
+    }
+    public ChannellingBaos(int numOfElement) {
+        this.buffQ = new ArrayDeque<>(numOfElement);
+    }
 
     @Override
     public void write(int b) throws IOException {
         if (this.closed) {
             throw new IOException("Stream closed");
         } else {
-            buffQ.add(new byte[]{(byte) b});
+            buffQ.offer(new byte[]{(byte) b});
             totalBytes++;
         }
     }
@@ -35,7 +39,7 @@ public class ChannellingBaos extends OutputStream {
         } else if (this.closed) {
             throw new IOException("Stream closed");
         }
-        buffQ.add(BytesHelper.subBytes(data, offset, offset + length));
+        buffQ.offer(BytesHelper.subBytes(data, offset, offset + length));
         totalBytes += length;
     }
 
@@ -46,7 +50,7 @@ public class ChannellingBaos extends OutputStream {
         }
         int len = data.length;
         if (len > 0) {
-            buffQ.add(data);
+            buffQ.offer(data);
             totalBytes+=len;
         }
     }

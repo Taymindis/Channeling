@@ -35,8 +35,8 @@ public class TestServer {
 //                ,
             "http://localhost/"
             ,
-//            "https://www.google.com.sg/"
-//            ,
+            "https://www.google.com.sg/"
+            ,
             "https://sg.yahoo.com/?p=us"
     );
 
