@@ -1,11 +1,9 @@
 package com.github.taymindis.nio.channeling;
 
-import org.junit.jupiter.api.Assertions;
 import org.openjdk.jmh.annotations.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
 
 public class BenchmarkRunner {
