@@ -4,23 +4,22 @@ import org.openjdk.jmh.annotations.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
 
 public class BenchmarkRunner {
     private static ChannelingBytesStream channelingBytesStream = new ChannelingBytesStream(25600);
     private static ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    private static ChannelingBytesStream2 channelingBytesStream2 = new ChannelingBytesStream2(25600);
+    private static ChannelingByteWriter channelingByteWriter = new ChannelingByteWriter(25600);
 
     public static void main(String[] args) throws Exception {
         channelingBytesStream.write(ConstantTestBytes.HEADERSBYTE.getBytes());
         channelingBytesStream.write(ConstantTestBytes.NEXT1.getBytes());
         channelingBytesStream.write(ConstantTestBytes.NEXT2.getBytes());
         channelingBytesStream.write(ConstantTestBytes.LAST.getBytes());
-        channelingBytesStream2.write(ConstantTestBytes.HEADERSBYTE.getBytes());
-        channelingBytesStream2.write(ConstantTestBytes.NEXT1.getBytes());
-        channelingBytesStream2.write(ConstantTestBytes.NEXT2.getBytes());
-        channelingBytesStream2.write(ConstantTestBytes.LAST.getBytes());
+        channelingByteWriter.write(ConstantTestBytes.HEADERSBYTE.getBytes());
+        channelingByteWriter.write(ConstantTestBytes.NEXT1.getBytes());
+        channelingByteWriter.write(ConstantTestBytes.NEXT2.getBytes());
+        channelingByteWriter.write(ConstantTestBytes.LAST.getBytes());
         outputStream.write(ConstantTestBytes.HEADERSBYTE.getBytes());
         outputStream.write(ConstantTestBytes.NEXT1.getBytes());
         outputStream.write(ConstantTestBytes.NEXT2.getBytes());
@@ -83,7 +82,7 @@ public class BenchmarkRunner {
     @Warmup(iterations = 5, time = 100, timeUnit = TimeUnit.MILLISECONDS)
     @Measurement(iterations = 5, time = 100, timeUnit = TimeUnit.MILLISECONDS)
     public void channelingBytesStream2BenchMark() throws IOException {
-        ChannelingBytes result = channelingBytesStream2.readToChannelingBytes();
+        ChannelingBytes result = channelingByteWriter.readToChannelingBytes();
         Assertions.assertEquals(result.getLength(), channelingBytesStream.size());
 
     }

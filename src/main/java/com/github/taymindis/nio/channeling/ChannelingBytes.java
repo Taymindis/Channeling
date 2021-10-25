@@ -1,6 +1,8 @@
 package com.github.taymindis.nio.channeling;
 
 
+import java.util.Arrays;
+
 public class ChannelingBytes {
 
     private byte[] buff;
@@ -34,6 +36,10 @@ public class ChannelingBytes {
 
     public void setLength(int length) {
         this.length = length;
+    }
+
+    public byte[] toByteArray() {
+       return Arrays.copyOfRange(buff, offset, offset + length);
     }
 }
 

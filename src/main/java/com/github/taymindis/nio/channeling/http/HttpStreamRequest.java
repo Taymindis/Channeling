@@ -12,7 +12,7 @@ public class HttpStreamRequest implements HttpRequest {
     private String messageToSend;
     private String host;
     private int port;
-    private ChannelingBytesStream2 channelingBytesStream;
+    private ChannelingByteWriter channelingByteWriter;
     private ChannelingSocket socket;
     private HttpStreamRequestCallback streamChunked;
     private HttpResponseType responseType;
@@ -48,7 +48,7 @@ public class HttpStreamRequest implements HttpRequest {
                                 int minInputBufferSize,
                                 boolean enableGzipDecompression) {
         this.readBuffer = ByteBuffer.allocate(socket.isSSL() ? socket.getSSLMinimumInputBufferSize() : minInputBufferSize);
-        this.channelingBytesStream = new ChannelingBytesStream2(1024 * 10);
+        this.channelingByteWriter = new ChannelingByteWriter(2048);
         this.messageToSend = messageToSend;
         this.socket = socket;
         this.host = host;
@@ -83,7 +83,7 @@ public class HttpStreamRequest implements HttpRequest {
             if (numRead > 0) {
                 totalRead += numRead;
                 readBuffer.flip();
-                channelingBytesStream.write(readBuffer);
+                channelingByteWriter.write(readBuffer);
             } else if (totalRead == 0) {
                 eagerRead(channelingSocket, this::massageHeader);
             } else if (contentEncodingType == ContentEncodingType.PENDING) {
@@ -92,15 +92,15 @@ public class HttpStreamRequest implements HttpRequest {
                 throw new IllegalStateException("Unknown action headers ....");
             }
 
-            if (channelingBytesStream.size() > 0) {
+            if (channelingByteWriter.size() > 0) {
 //                byte[] currBytes = currProcessingStream.toByteArray();
                 if (findHeaders()) {
-                    ChannelingBytes bytes = channelingBytesStream.readToChannelingBytes(bodyOffset);
+                    ChannelingBytes bytes = channelingByteWriter.readToChannelingBytes(bodyOffset);
 
                     streamChunked.headerAccept(bytes.getBuff(), bytes.getOffset(), bytes.getLength(), channelingSocket);
 
                     /** Read the left over bytes **/
-                    bytes = channelingBytesStream.readToChannelingBytes();
+                    bytes = channelingByteWriter.readToChannelingBytes();
 
                     switch (responseType) {
                         case TRANSFER_CHUNKED:
@@ -146,8 +146,8 @@ public class HttpStreamRequest implements HttpRequest {
 //                byte[] b = new byte[readBuffer.limit() - readBuffer.position()];
 //                readBuffer.get(b);
 //                currConsumedBytes = b;
-                channelingBytesStream.write(readBuffer);
-                ChannelingBytes bytes = channelingBytesStream.readToChannelingBytes();
+                channelingByteWriter.write(readBuffer);
+                ChannelingBytes bytes = channelingByteWriter.readToChannelingBytes();
                 if (isLastChunked()) {
                     channelingSocket.noEagerRead();
                     streamChunked.last(bytes.getBuff(), bytes.getOffset(), bytes.getLength(), channelingSocket);
@@ -166,7 +166,7 @@ public class HttpStreamRequest implements HttpRequest {
     }
 
     private boolean isLastChunked() {
-        return channelingBytesStream.endsWith(LAST_CHUNKED_PATTERN);
+        return channelingByteWriter.endsWith(LAST_CHUNKED_PATTERN);
     }
 
     public void massageContentLengthBody(ChannelingSocket channelingSocket) {
@@ -198,14 +198,14 @@ public class HttpStreamRequest implements HttpRequest {
 
     private boolean findHeaders() throws IOException {
         if (bodyOffset == -1) {
-            bodyOffset = channelingBytesStream.indexOf("\r\n\r\n".getBytes());
+            bodyOffset = channelingByteWriter.indexOf("\r\n\r\n".getBytes());
             if (bodyOffset == -1) {
                 return false;
             }
             bodyOffset += "\r\n\r\n".getBytes().length;
             if (responseType == HttpResponseType.PENDING ||
                     contentEncodingType == ContentEncodingType.PENDING) {
-                reqHeaders = channelingBytesStream.toString(bodyOffset, StandardCharsets.UTF_8).toUpperCase();
+                reqHeaders = channelingByteWriter.toString(bodyOffset, StandardCharsets.UTF_8).toUpperCase();
                 if (reqHeaders.contains("TRANSFER-ENCODING:")) {
                     responseType = HttpResponseType.TRANSFER_CHUNKED;
                 } else if (reqHeaders.contains("CONTENT-LENGTH:")) {
@@ -214,7 +214,7 @@ public class HttpStreamRequest implements HttpRequest {
                     requiredLength += bodyOffset;
                     responseType = HttpResponseType.CONTENT_LENGTH;
                 } else {
-                    requiredLength = channelingBytesStream.size();
+                    requiredLength = channelingByteWriter.size();
                     responseType = HttpResponseType.CONTENT_LENGTH;
                 }
 

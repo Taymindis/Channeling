@@ -6,18 +6,18 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-public class ChannelingBytesStream2 {
+public class ChannelingByteWriter {
 
     private byte[] buffs;
-    private static final int DEFAULT_NUM_OF_WRITE = 1024 * 10;
+    private static final int DEFAULT_NUM_OF_WRITE = 64;
     private int capacity, readIdx = 0, size = 0;
     private boolean closed = false;
 
-    public ChannelingBytesStream2() {
+    public ChannelingByteWriter() {
         this(DEFAULT_NUM_OF_WRITE);
     }
 
-    public ChannelingBytesStream2(int size) {
+    public ChannelingByteWriter(int size) {
         this.buffs = new byte[size];
         this.capacity = size;
     }
