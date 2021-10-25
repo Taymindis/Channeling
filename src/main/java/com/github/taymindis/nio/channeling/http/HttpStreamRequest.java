@@ -307,7 +307,7 @@ public class HttpStreamRequest implements HttpRequest {
             bodyOffset = headerResult.getTotalBytes();
 
             if (responseType == HttpResponseType.PENDING || contentEncodingType == ContentEncodingType.PENDING) {
-                String headers = getData(headerResult).toUpperCase();
+                String headers = headerResult.toString().toUpperCase();
 
                 if (headers.contains("TRANSFER-ENCODING:")) {
                     responseType = HttpResponseType.TRANSFER_CHUNKED;
@@ -385,15 +385,15 @@ public class HttpStreamRequest implements HttpRequest {
         this.totalWrite = totalWrite;
     }
 
-    private String getData(ChannelingBytesResult result) {
-        StringBuilder a = new StringBuilder();
-        result.forEach(new ChannelingBytesLoop() {
-            @Override
-            public boolean consumer(byte[] bytes, int offset, int length) {
-                a.append(new String(bytes, offset, length));
-                return true;
-            }
-        });
-        return a.toString();
-    }
+//    private String getData(ChannelingBytesResult result) {
+//        StringBuilder a = new StringBuilder();
+//        result.forEach(new ChannelingBytesLoop() {
+//            @Override
+//            public boolean consumer(byte[] bytes, int offset, int length) {
+//                a.append(new String(bytes, offset, length));
+//                return true;
+//            }
+//        });
+//        return a.toString();
+//    }
 }

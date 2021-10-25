@@ -101,6 +101,28 @@ public class ChannelingBytesResult {
         return result;
     }
 
+    public String toString() {
+        StringBuilder a = new StringBuilder();
+        if (buffIndexStart > buffIndexEnd) {
+            return a.toString();
+        }
+        byte[] byteStream = buffs[buffIndexStart];
+        // Only one
+        if (buffIndexStart == buffIndexEnd) {
+            byteStream = buffs[buffIndexEnd];
+            a.append(new String(byteStream, offSetOfFirst, limitOfEnd - offSetOfFirst));
+            return a.toString();
+        }
+        a.append(new String(byteStream, offSetOfFirst, byteStream.length - offSetOfFirst));
+        for (int i = buffIndexStart + 1; i < buffIndexEnd; i++) {
+            byteStream = buffs[i];
+            a.append(new String(byteStream, 0, byteStream.length));
+        }
+        byteStream = buffs[buffIndexEnd];
+        a.append(new String(byteStream, 0, limitOfEnd));
+        return a.toString();
+    }
+
     public int getTotalBytes() {
         if (totalBytes == -1) {
             if (buffIndexStart > buffIndexEnd) {
