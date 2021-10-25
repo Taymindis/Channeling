@@ -82,6 +82,10 @@ public class ChannelingByteWriter {
         return toChannelingBytes(0, size);
     }
 
+    public ChannelingBytes toChannelingBytes(int offset) throws IOException {
+        return toChannelingBytes(offset, size-offset);
+    }
+
     public ChannelingBytes readToChannelingBytes(int length) throws IOException {
         int currReadIdx = readIdx;
         readIdx += length;

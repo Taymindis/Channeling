@@ -1,5 +1,7 @@
 package com.github.taymindis.nio.channeling.http;
 
+import com.github.taymindis.nio.channeling.ChannelingBytes;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -12,8 +14,8 @@ import java.util.Map;
 import java.util.zip.GZIPInputStream;
 
 public class HttpMessageHelper {
-    public static String parseToString(byte[] consumedBytes) {
-        return new String(consumedBytes, StandardCharsets.UTF_8);
+    public static String parseToString(ChannelingBytes consumedBytes) {
+        return new String(consumedBytes.getBuff(), consumedBytes.getOffset(), consumedBytes.getLength(), StandardCharsets.UTF_8);
     }
 
     public static void massageRequestHeader(HttpRequestMessage request, String headerContent) throws Exception {

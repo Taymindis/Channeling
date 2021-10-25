@@ -6,7 +6,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
@@ -221,10 +220,9 @@ public class ChannelingServer implements AutoCloseable {
         try {
             if (numRead > 0) {
                 readBuffer.flip();
-                byte[] b = new byte[readBuffer.limit() - readBuffer.position()];
-                readBuffer.get(b);
-
-                HttpRequestParser messageParser = parsingMessage(socketRead, b);
+//                byte[] b = new byte[readBuffer.limit() - readBuffer.position()];
+//                readBuffer.get(b);
+                HttpRequestParser messageParser = parsingMessage(socketRead, readBuffer);
 
                 if (!messageParser.isDoneParsed()) {
                     socketRead.setContext(messageParser);
@@ -325,7 +323,7 @@ public class ChannelingServer implements AutoCloseable {
         return request;
     }
 
-    private HttpRequestParser parsingMessage(ChannelingSocket socketRead, byte[] b) throws IOException {
+    private HttpRequestParser parsingMessage(ChannelingSocket socketRead, ByteBuffer bb) throws IOException {
         HttpRequestParser message = (HttpRequestParser) socketRead.getContext();
         if (message == null) {
             message = new HttpRequestParser();
@@ -335,19 +333,8 @@ public class ChannelingServer implements AutoCloseable {
         int bodyOffset = message.getBodyOffset();
 
         if (isReadBody()) {
-            byte[] currBytes = message.getRawBytes();
-            if (currBytes == null) {
-                message.setRawBytes(b);
-            } else {
-                try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-                    outputStream.write(currBytes);
-                    outputStream.write(b);
-
-                    message.setRawBytes(outputStream.toByteArray());
-                }
-            }
+            message.writeBytes(bb);
         }
-
 
         String consumeMessage = parseToString(message.getRawBytes());
 
