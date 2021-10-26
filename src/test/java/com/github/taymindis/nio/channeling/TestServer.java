@@ -17,6 +17,7 @@ import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.github.taymindis.nio.channeling.Channeling.CHANNELING_VERSION;
@@ -207,182 +208,186 @@ public class TestServer {
     }
 
     private void proxyStreamHandler(HttpRequestMessage requestMessage, ResponseCallback callback, String proxyTo) {
-        try {
-            URI uri = new URI(proxyTo);
-            String host = uri.getHost();
-            boolean isSSL = uri.getScheme().startsWith("https");
+        requestMessage.readBody(bytes -> {
+            try {
+                String body = bytes.toString();
 
-            int port = uri.getPort();
-            String path = uri.getPath();
-            String args = uri.getQuery();
+                URI uri = new URI(proxyTo);
+                String host = uri.getHost();
+                boolean isSSL = uri.getScheme().startsWith("https");
 
-            if (port < 0) {
-                port = isSSL ? 443 : 80;
-            }
-            ChannelingSocket cs = isSSL ? channeling.wrapSSL("TLSv1.2", host, port, null) : channeling.wrap(null);
+                int port = uri.getPort();
+                String path = uri.getPath();
+                String args = uri.getQuery();
 
-            HttpRequestBuilder requestBuilder = new HttpRequestBuilder();
-
-            requestBuilder.setMethod("GET");
-            requestBuilder.addHeader("Host", String.format("%s", host));
-            requestBuilder.setPath(path);
-            requestBuilder.setArgs(args);
-            AtomicInteger loading = new AtomicInteger(0);
-
-            HttpRequest httpRequest = new HttpStreamRequest(
-                    cs,
-                    host,
-                    port,
-                    requestBuilder.toString(),
-                    isSSL ? cs.getSSLMinimumInputBufferSize() : 1024
-            );
-
-            // TODO Please do the next write after write and then, if not sure, follow transfer chunked mock result
-            httpRequest.execute(new HttpStreamRequestCallback() {
-
-                @Override
-                public void headerAccept(byte[] chunked, int offset, int length, ChannelingSocket socket) throws Exception {
-                    callback.streamWrite(ByteBuffer.wrap(chunked, offset, length), clientSocket -> {
-                        // TODO Continue
-                    });
-//                    DEBUG_INFO("HEADER========\n" + new String(chunked, offset, length));
-
+                if (port < 0) {
+                    port = isSSL ? 443 : 80;
                 }
-//                @Override
-//                public void headerEnd(byte[] chunked, int offset, int length, ChannelingSocket socket) throws Exception {
-//
-//                    Map<String, String> headerMap = new HashMap<>();
-//
-//                    headerMap.put("Proxy-By", CHANNELING_VERSION);
-////
-//////                    String statusLine = headerMap.getOrDefault("status", "HTTP/1.1 200 OK");
-//////                    DEBUG_INFO(HttpMessageHelper.headerToString(headerMap, statusLine));
-//////                    byte[] headerBytes = HttpMessageHelper.headerToBytes(headerMap, statusLine);
-//////                    debugStream.write(headerBytes);
-////
-//                    byte[] addedOnHeaders = HttpMessageHelper.headerToBytes(headerMap);
-////
-//                    callback.streamWrite(ByteBuffer.wrap(addedOnHeaders), clientSocket -> {
-//                        // TODO Continue
-//                    });
-//
-////                    callback.streamWrite(ByteBuffer.wrap(chunked, offset, length), clientSocket -> {
-////                        // TODO Continue
-////                    });
-////                    DEBUG_INFO("HEADER LAST========\n" + new String(chunked, offset, length));
-//
-//                }
+                ChannelingSocket cs = isSSL ? channeling.wrapSSL("TLSv1.2", host, port, null) : channeling.wrap(null);
 
-                @Override
-                public void accept(byte[] chunked, int offset, int length, ChannelingSocket socket) {
+                HttpRequestBuilder requestBuilder = new HttpRequestBuilder();
 
-                    try {
-//                        DEBUG_INFO(new String(chunked));
-//                        DEBUG_INFO(loading.incrementAndGet());
-//                        debugStream.write(chunked);
-//                        if (nextChunkedLen == -1) {
-//                            String[] lenAndBody = new String(chunked).split("\\r?\\n", 2);
-//                            String hex = lenAndBody[0];
-//                            nextChunkedLen = HttpMessageHelper.hexToInt(hex) + 2;
-//                            chunked = lenAndBody[1].getBytes();
-//                        }
-//                        if ((accLen + chunked.length) >= nextChunkedLen) {
-//                            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-//                            int lastLenOfTheChunk = nextChunkedLen - accLen;
-//                            byte[] streamChunk, lastBufferOfTheChunk = BytesHelper.subBytes(chunked, 0, lastLenOfTheChunk - 2);
-//
-//                            while ((streamChunk = chunkQueue.poll()) != null) {
-//                                outputStream.write(streamChunk);
-//                            }
-//                            outputStream.write(lastBufferOfTheChunk);
-//                            responseHandler.accept(outputStream.toByteArray(), socket);
-//                            byte[] carrForwardedChunk = BytesHelper.subBytes(chunked, lastLenOfTheChunk);
-//                            accLen = carrForwardedChunk.length;
-//
-//                            String[] lenAndBody = new String(carrForwardedChunk).split("\\r?\\n", 2);
-//                            nextChunkedLen = HttpMessageHelper.hexToInt(lenAndBody[0]) + 2;
-//                            chunkQueue.add(lenAndBody[1].getBytes());
-//                        } else {
-//                            chunkQueue.add(chunked);
-//                            accLen += chunked.length;
-////                            responseHandler.accept(BytesHelper.subBytes(chunked, 0, nextChunkedLen - (accLen-chunked.length)), socket);
-//                        }
+                requestBuilder.setMethod("GET");
+                requestBuilder.addHeader("Host", String.format("%s", host));
+                requestBuilder.setPath(path);
+                requestBuilder.setArgs(args);
+                AtomicInteger loading = new AtomicInteger(0);
 
+                HttpRequest httpRequest = new HttpStreamRequest(
+                        cs,
+                        host,
+                        port,
+                        requestBuilder.toString(),
+                        isSSL ? cs.getSSLMinimumInputBufferSize() : 1024
+                );
+
+                // TODO Please do the next write after write and then, if not sure, follow transfer chunked mock result
+                httpRequest.execute(new HttpStreamRequestCallback() {
+
+                    @Override
+                    public void headerAccept(byte[] chunked, int offset, int length, ChannelingSocket socket) throws Exception {
                         callback.streamWrite(ByteBuffer.wrap(chunked, offset, length), clientSocket -> {
                             // TODO Continue
                         });
+                        //                    DEBUG_INFO("HEADER========\n" + new String(chunked, offset, length));
 
-//                        DEBUG_INFO("PROCESS========\n" + new String(chunked, offset, length));
+                    }
+                    //                @Override
+                    //                public void headerEnd(byte[] chunked, int offset, int length, ChannelingSocket socket) throws Exception {
+                    //
+                    //                    Map<String, String> headerMap = new HashMap<>();
+                    //
+                    //                    headerMap.put("Proxy-By", CHANNELING_VERSION);
+                    ////
+                    //////                    String statusLine = headerMap.getOrDefault("status", "HTTP/1.1 200 OK");
+                    //////                    DEBUG_INFO(HttpMessageHelper.headerToString(headerMap, statusLine));
+                    //////                    byte[] headerBytes = HttpMessageHelper.headerToBytes(headerMap, statusLine);
+                    //////                    debugStream.write(headerBytes);
+                    ////
+                    //                    byte[] addedOnHeaders = HttpMessageHelper.headerToBytes(headerMap);
+                    ////
+                    //                    callback.streamWrite(ByteBuffer.wrap(addedOnHeaders), clientSocket -> {
+                    //                        // TODO Continue
+                    //                    });
+                    //
+                    ////                    callback.streamWrite(ByteBuffer.wrap(chunked, offset, length), clientSocket -> {
+                    ////                        // TODO Continue
+                    ////                    });
+                    ////                    DEBUG_INFO("HEADER LAST========\n" + new String(chunked, offset, length));
+                    //
+                    //                }
 
-                    } catch (Exception e) {
+                    @Override
+                    public void accept(byte[] chunked, int offset, int length, ChannelingSocket socket) {
+
+                        try {
+                            //                        DEBUG_INFO(new String(chunked));
+                            //                        DEBUG_INFO(loading.incrementAndGet());
+                            //                        debugStream.write(chunked);
+                            //                        if (nextChunkedLen == -1) {
+                            //                            String[] lenAndBody = new String(chunked).split("\\r?\\n", 2);
+                            //                            String hex = lenAndBody[0];
+                            //                            nextChunkedLen = HttpMessageHelper.hexToInt(hex) + 2;
+                            //                            chunked = lenAndBody[1].getBytes();
+                            //                        }
+                            //                        if ((accLen + chunked.length) >= nextChunkedLen) {
+                            //                            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                            //                            int lastLenOfTheChunk = nextChunkedLen - accLen;
+                            //                            byte[] streamChunk, lastBufferOfTheChunk = BytesHelper.subBytes(chunked, 0, lastLenOfTheChunk - 2);
+                            //
+                            //                            while ((streamChunk = chunkQueue.poll()) != null) {
+                            //                                outputStream.write(streamChunk);
+                            //                            }
+                            //                            outputStream.write(lastBufferOfTheChunk);
+                            //                            responseHandler.accept(outputStream.toByteArray(), socket);
+                            //                            byte[] carrForwardedChunk = BytesHelper.subBytes(chunked, lastLenOfTheChunk);
+                            //                            accLen = carrForwardedChunk.length;
+                            //
+                            //                            String[] lenAndBody = new String(carrForwardedChunk).split("\\r?\\n", 2);
+                            //                            nextChunkedLen = HttpMessageHelper.hexToInt(lenAndBody[0]) + 2;
+                            //                            chunkQueue.add(lenAndBody[1].getBytes());
+                            //                        } else {
+                            //                            chunkQueue.add(chunked);
+                            //                            accLen += chunked.length;
+                            ////                            responseHandler.accept(BytesHelper.subBytes(chunked, 0, nextChunkedLen - (accLen-chunked.length)), socket);
+                            //                        }
+
+                            callback.streamWrite(ByteBuffer.wrap(chunked, offset, length), clientSocket -> {
+                                // TODO Continue
+                            });
+
+                            //                        DEBUG_INFO("PROCESS========\n" + new String(chunked, offset, length));
+
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+
+                    @Override
+                    public void last(byte[] chunked, int offset, int length, ChannelingSocket socket) {
+
+                        try {
+                            //                        debugStream.write(chunked);
+                            //                        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                            //                        byte[] streamChunk;
+                            //                        while ((streamChunk = chunkQueue.poll()) != null) {
+                            //                            outputStream.write(streamChunk);
+                            //                        }
+                            //                        outputStream.write(chunked);
+                            //
+                            //                        responseHandler.last(outputStream.toByteArray(), socket);
+                            callback.streamWrite(ByteBuffer.wrap(chunked, offset, length), TestServer.this::close);
+
+                            //                        DEBUG_INFO("LAST========\n" + new String(chunked, offset, length));
+                            //                        String closingChunked;
+                            //                        int clen = chunked.length;
+                            //
+                            //                        if((clen == 5 && BytesHelper.equals(chunked,"0\r\n\r\n".getBytes())) || (clen == 6 && BytesHelper.equals(chunked,"\r\n0\r\n\r\n".getBytes()))) {
+                            //                            callback.streamWrite(ByteBuffer.wrap("\r\n0\r\n\r\n".getBytes()), clientSocket -> {
+                            //                                close(clientSocket);
+                            //                            });
+                            //                        } else {
+                            //                            chunked = BytesHelper.subBytes(chunked, 0, chunked.length-5);
+                            //
+                            //                            DEBUG_INFO(new String(chunked));
+                            //                            if (BytesHelper.equals(chunked, "\r\n".getBytes(), chunked.length-2)) {
+                            //                                chunked = BytesHelper.subBytes(chunked, 0, chunked.length-2);
+                            //                                closingChunked = "\r\n0\r\n\r\n";
+                            //                            } else {
+                            //                                closingChunked = "\r\n0\r\n\r\n";
+                            //                            }
+                            //
+                            //                            callback.streamWrite(ByteBuffer.wrap(BytesHelper
+                            //                                    .concat(String.format(
+                            //                                            "%s\r\n", HttpMessageHelper.intToHex(chunked.length)).getBytes(),
+                            //                                            chunked,
+                            //                                            closingChunked.getBytes())), clientSocket -> {
+                            //                                close(clientSocket);
+                            //                            });
+                            //                        }
+                            //
+                            //
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+
+                    @Override
+                    public void error(Exception e, ChannelingSocket socket) {
+                        requestMessage.getClientSocket().close(sc -> {
+                        });
+                        socket.close(sc -> {
+                        });
+                        //                    Assertions.fail(e.getMessage(), e);
                         e.printStackTrace();
                     }
-                }
-
-                @Override
-                public void last(byte[] chunked, int offset, int length, ChannelingSocket socket) {
-
-                    try {
-//                        debugStream.write(chunked);
-//                        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-//                        byte[] streamChunk;
-//                        while ((streamChunk = chunkQueue.poll()) != null) {
-//                            outputStream.write(streamChunk);
-//                        }
-//                        outputStream.write(chunked);
-//
-//                        responseHandler.last(outputStream.toByteArray(), socket);
-                        callback.streamWrite(ByteBuffer.wrap(chunked, offset, length), TestServer.this::close);
-
-//                        DEBUG_INFO("LAST========\n" + new String(chunked, offset, length));
-//                        String closingChunked;
-//                        int clen = chunked.length;
-//
-//                        if((clen == 5 && BytesHelper.equals(chunked,"0\r\n\r\n".getBytes())) || (clen == 6 && BytesHelper.equals(chunked,"\r\n0\r\n\r\n".getBytes()))) {
-//                            callback.streamWrite(ByteBuffer.wrap("\r\n0\r\n\r\n".getBytes()), clientSocket -> {
-//                                close(clientSocket);
-//                            });
-//                        } else {
-//                            chunked = BytesHelper.subBytes(chunked, 0, chunked.length-5);
-//
-//                            DEBUG_INFO(new String(chunked));
-//                            if (BytesHelper.equals(chunked, "\r\n".getBytes(), chunked.length-2)) {
-//                                chunked = BytesHelper.subBytes(chunked, 0, chunked.length-2);
-//                                closingChunked = "\r\n0\r\n\r\n";
-//                            } else {
-//                                closingChunked = "\r\n0\r\n\r\n";
-//                            }
-//
-//                            callback.streamWrite(ByteBuffer.wrap(BytesHelper
-//                                    .concat(String.format(
-//                                            "%s\r\n", HttpMessageHelper.intToHex(chunked.length)).getBytes(),
-//                                            chunked,
-//                                            closingChunked.getBytes())), clientSocket -> {
-//                                close(clientSocket);
-//                            });
-//                        }
-//
-//
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                }
-
-                @Override
-                public void error(Exception e, ChannelingSocket socket) {
-                    requestMessage.getClientSocket().close(sc -> {
-                    });
-                    socket.close(sc -> {
-                    });
-//                    Assertions.fail(e.getMessage(), e);
-                    e.printStackTrace();
-                }
-            });
+                });
 
 
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     private void DEBUG_INFO(String s) {

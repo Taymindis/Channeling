@@ -36,17 +36,17 @@ public class HttpRequestParser {
         this.headerContent = headerContent;
     }
 
-    public String getBody(Charset charset) throws IOException {
-        if (body == null && bodyOffset > 0) {
-            ChannelingBytes bytes = byteWriter.toChannelingBytes(bodyOffset);
-            body = new String(bytes.getBuff(), bytes.getOffset(), bytes.getLength(), charset);
-        }
-        return body;
-    }
-
-    public String getBody() throws IOException {
-        return getBody(StandardCharsets.UTF_8);
-    }
+//    public String getBody(Charset charset) throws IOException {
+//        if (body == null && bodyOffset > 0) {
+//            ChannelingBytes bytes = byteWriter.toChannelingBytes(bodyOffset);
+//            body = new String(bytes.getBuff(), bytes.getOffset(), bytes.getLength(), charset);
+//        }
+//        return body;
+//    }
+//
+//    public String getBody() throws IOException {
+//        return getBody(StandardCharsets.UTF_8);
+//    }
 
     public int getBodyOffset() {
         return bodyOffset;
@@ -88,4 +88,7 @@ public class HttpRequestParser {
         byteWriter.write(buffer);
     }
 
+    public ChannelingByteWriter getByteWriter() {
+        return byteWriter;
+    }
 }

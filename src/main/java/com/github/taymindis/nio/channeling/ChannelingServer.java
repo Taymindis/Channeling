@@ -210,6 +210,21 @@ public class ChannelingServer implements AutoCloseable {
         channelingSocket.withEagerRead(readBuffer).then(this::readAndThen);
     }
 
+    /**
+     Request BODY RULE
+     * 1. If it is a GET or HEAD request, you only need to read the HTTP headers,
+     *    request body is normally ignored if it exists, so when you encounter \r\n\r\n,
+     *    you reach the end of the request(actually the request headers).
+     * 2. If it is a POST method, read the Content-Length in the header and read up to
+     *    Content-Length bytes.
+     * 3. If it is a POST method and the Content-Length header is absent,
+     *    which is most likely to happen, read until -1 is returned, which is the signal of EOF.
+     * 4. If it is a POST method and the Content-Length header is absent but keep alived, throw illegal state exception,
+     *    keep alive must have content length header.
+     *
+     * @param socketRead
+     */
+
     private void readAndThen(ChannelingSocket socketRead) {
         int numRead = socketRead.getLastProcessedBytes();
         ByteBuffer readBuffer = socketRead.getReadBuffer();
@@ -228,6 +243,7 @@ public class ChannelingServer implements AutoCloseable {
                     socketRead.setContext(messageParser);
                     eagerRead(readBuffer, socketRead);
                 } else {
+//                    socketRead.noEagerRead();
                     HttpRequestMessage request = convertMessageToHttpRequestMessage(socketRead, messageParser);
                     String vHost = request.getHeaderMap().get("Host");
                     if (vHost == null) {
@@ -318,7 +334,9 @@ public class ChannelingServer implements AutoCloseable {
 
         massageRequestHeader(request, messageParser.getHeaderContent());
 
-        request.setBody(messageParser.getBody());
+        request.setBodyOffset(messageParser.getBodyOffset());
+        request.setClientReadWriter(messageParser.getByteWriter());
+        request.setExpectedLen(messageParser.getExpectedLen());
 
         return request;
     }
@@ -352,23 +370,24 @@ public class ChannelingServer implements AutoCloseable {
 
                 message.setHeaderContent(headersContent);
                 String lowCaseHeaders = headersContent.toLowerCase();
-                if (lowCaseHeaders.contains("content-length: ")) {
+                // If not sure why this, see the "Request BODY RULE" in this file comment
+                if (lowCaseHeaders.contains("content-length:")) {
                     String contentLength = lowCaseHeaders.substring(lowCaseHeaders.indexOf("content-length:") + "content-length:".length()).split("\\r?\\n", 2)[0];
                     requiredLength = Integer.parseInt(contentLength.trim());
+                    requiredLength += bodyOffset;
+                    message.setExpectedLen(requiredLength);
+                    message.setDoneParsed(true);
                 } else {
-                    requiredLength = consumeMessage.length() - bodyOffset;
+                    message.setExpectedLen(consumeMessage.length());
                     message.setDoneParsed(true);
                 }
 
-                requiredLength += bodyOffset;
-
-                message.setExpectedLen(requiredLength);
             }
         }
 
-        if (message.getExpectedLen() > 0) {
-            message.setDoneParsed(message.getCurrLen() >= message.getExpectedLen());
-        }
+//        if (message.getExpectedLen() > 0) {
+//            message.setDoneParsed(message.getCurrLen() >= message.getExpectedLen());
+//        }
 
         return message;
 

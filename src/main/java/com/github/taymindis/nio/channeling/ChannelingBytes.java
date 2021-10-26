@@ -41,6 +41,11 @@ public class ChannelingBytes {
     public byte[] toByteArray() {
        return Arrays.copyOfRange(buff, offset, offset + length);
     }
+
+    @Override
+    public String toString() {
+       return new String(buff, offset, length);
+    }
 }
 
 
