@@ -77,7 +77,7 @@ public class HttpSingleRequest implements HttpRequest {
 
     @Override
     public void execute(HttpStreamRequestCallback callback) {
-        throw new UnsupportedOperationException("HttpRequest un-support StreamResponse");
+        throw new UnsupportedOperationException("HttpSingleRequest un-support StreamResponse, Please use HttpStreamRequest");
     }
 
     public int getTotalRead() {
