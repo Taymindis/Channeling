@@ -26,7 +26,7 @@ public class Channeling {
     boolean active = true;
     private final int nWorker;
     private int numOfSSLWoker = -1;
-    public static final String CHANNELING_VERSION = "Channeling/2.0.0";
+    public static final String CHANNELING_VERSION = "Channeling/2.1.1";
     public static Channeling startNewChanneling() throws IOException {
         return startNewChanneling(1, DEFAULT_PEEK_TIME);
     }

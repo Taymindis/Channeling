@@ -7,9 +7,9 @@ import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 public class BenchmarkRunner {
-    private static ChannelingBytesStream channelingBytesStream = new ChannelingBytesStream(25600);
-    private static ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    private static ChannelingByteWriter channelingByteWriter = new ChannelingByteWriter(25600);
+    private static final ChannelingBytesStream channelingBytesStream = new ChannelingBytesStream(25600);
+    private static final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    private static final ChannelingByteWriter channelingByteWriter = new ChannelingByteWriter(25600);
 
     public static void main(String[] args) throws Exception {
         channelingBytesStream.write(ConstantTestBytes.HEADERSBYTE.getBytes());
@@ -72,7 +72,7 @@ public class BenchmarkRunner {
     @BenchmarkMode(Mode.Throughput)
     @Warmup(iterations = 5, time = 100, timeUnit = TimeUnit.MILLISECONDS)
     @Measurement(iterations = 5, time = 100, timeUnit = TimeUnit.MILLISECONDS)
-    public void outputStreamTest() throws IOException {
+    public void outputStreamTest() {
         byte[] result = outputStream.toByteArray();
         Assertions.assertEquals(result.length, channelingBytesStream.size());
 

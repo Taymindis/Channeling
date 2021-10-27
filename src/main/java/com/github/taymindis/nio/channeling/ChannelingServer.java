@@ -36,15 +36,18 @@ public class ChannelingServer implements AutoCloseable {
     private ErrorCallback onReadError, onWriteError, onAcceptError;
     private static final ErrorCallback ON_READ_ERROR = (sc, e) -> {
         e.printStackTrace();
-        sc.close(s->{});
+        sc.close(s -> {
+        });
     };
     private ErrorCallback ON_WRITE_ERROR = (sc, e) -> {
         e.printStackTrace();
-        sc.close(s->{});
+        sc.close(s -> {
+        });
     };
     private ErrorCallback ON_ACCEPT_ERROR = (sc, e) -> {
         e.printStackTrace();
-        sc.close(s->{});
+        sc.close(s -> {
+        });
     };
     private int waitPerNano = -1;
 
@@ -202,7 +205,7 @@ public class ChannelingServer implements AutoCloseable {
         }
 
     }
-    
+
     private void eagerRead(ByteBuffer readBuffer, ChannelingSocket channelingSocket) {
         if (!readBuffer.hasRemaining()) {
             readBuffer.clear();
@@ -211,16 +214,16 @@ public class ChannelingServer implements AutoCloseable {
     }
 
     /**
-     Request BODY RULE
+     * Request BODY RULE
      * 1. If it is a GET or HEAD request, you only need to read the HTTP headers,
-     *    request body is normally ignored if it exists, so when you encounter \r\n\r\n,
-     *    you reach the end of the request(actually the request headers).
+     * request body is normally ignored if it exists, so when you encounter \r\n\r\n,
+     * you reach the end of the request(actually the request headers).
      * 2. If it is a POST method, read the Content-Length in the header and read up to
-     *    Content-Length bytes.
+     * Content-Length bytes.
      * 3. If it is a POST method and the Content-Length header is absent,
-     *    which is most likely to happen, read until -1 is returned, which is the signal of EOF.
+     * which is most likely to happen, read until -1 is returned, which is the signal of EOF.
      * 4. If it is a POST method and the Content-Length header is absent but keep alived, throw illegal state exception,
-     *    keep alive must have content length header.
+     * keep alive must have content length header.
      *
      * @param socketRead
      */
@@ -257,13 +260,13 @@ public class ChannelingServer implements AutoCloseable {
 
                                 @Override
                                 public void write(HttpResponseMessage responseMessage, Charset charset, Then $then) {
-                                    if(charset == null) {
+                                    if (charset == null) {
                                         charset = StandardCharsets.UTF_8;
                                     }
                                     try {
                                         String responseMsg = massageResponseToString(responseMessage);
                                         ByteBuffer writeBuffer = ByteBuffer.wrap(responseMsg.getBytes(charset));
-                                        socketRead.write(writeBuffer, socket-> {
+                                        socketRead.write(writeBuffer, socket -> {
                                                     this.flush(socket, $then);
                                                 },
                                                 ChannelingServer.this.onWriteError);
@@ -274,7 +277,7 @@ public class ChannelingServer implements AutoCloseable {
 
                                 @Override
                                 public void streamWrite(ByteBuffer b, Then $then) {
-                                    if ( queueForWrite(b, $then) != null) {
+                                    if (queueForWrite(b, $then) != null) {
                                         socketRead.write(b, socket -> {
                                                     this.flush(socket, $then);
                                                 },
@@ -283,13 +286,13 @@ public class ChannelingServer implements AutoCloseable {
                                 }
 
                                 private void flush(ChannelingSocket channelingSocket, Then callback) {
-                                     ByteBuffer currWriteBuff = channelingSocket.getCurrWritingBuffer();
+                                    ByteBuffer currWriteBuff = channelingSocket.getCurrWritingBuffer();
                                     if (currWriteBuff.hasRemaining()) {
                                         socketRead.write(currWriteBuff, s -> this.flush(s, callback));
                                     } else {
                                         callback.callback(socketRead);
                                         QueueWriteBuffer qwb;
-                                        if((qwb = queueForWrite(null, null)) != null) {
+                                        if ((qwb = queueForWrite(null, null)) != null) {
                                             socketRead.write(qwb.getNb(), socket -> {
                                                         this.flush(socket, qwb.get$then());
                                                     },
@@ -297,16 +300,17 @@ public class ChannelingServer implements AutoCloseable {
                                         }
                                     }
                                 }
+
                                 private synchronized QueueWriteBuffer queueForWrite(ByteBuffer nb, Then $then) {
                                     QueueWriteBuffer qwb;
-                                    if(nb == null) { // Means remove first one and take second one
+                                    if (nb == null) { // Means remove first one and take second one
                                         buffQueue.poll();
-                                        if(buffQueue.isEmpty())
+                                        if (buffQueue.isEmpty())
                                             return null;
                                         return buffQueue.peek();
                                     } else {
                                         qwb = new QueueWriteBuffer(nb, $then);
-                                        if(buffQueue.isEmpty()) {
+                                        if (buffQueue.isEmpty()) {
                                             buffQueue.offer(qwb);
                                             return qwb;
                                         } else {
@@ -331,12 +335,17 @@ public class ChannelingServer implements AutoCloseable {
     private HttpRequestMessage convertMessageToHttpRequestMessage(ChannelingSocket socketRead, HttpRequestParser messageParser) throws Exception {
         HttpRequestMessage request = new HttpRequestMessage(socketRead);
         request.setRemoteAddress(socketRead.getRemoteAddress());
+        ChannelingByteWriter writer = messageParser.getByteWriter();
+        int expectedLen = messageParser.getExpectedLen();
 
         massageRequestHeader(request, messageParser.getHeaderContent());
 
         request.setBodyOffset(messageParser.getBodyOffset());
-        request.setClientReadWriter(messageParser.getByteWriter());
-        request.setExpectedLen(messageParser.getExpectedLen());
+
+        request.setClientReadWriter(writer);
+        request.setExpectedLen(expectedLen);
+
+        request.setHasBody(expectedLen != -1 && writer.size() >= expectedLen);
 
         return request;
     }
@@ -378,7 +387,7 @@ public class ChannelingServer implements AutoCloseable {
                     message.setExpectedLen(requiredLength);
                     message.setDoneParsed(true);
                 } else {
-                    message.setExpectedLen(consumeMessage.length());
+                    message.setExpectedLen(-1);
                     message.setDoneParsed(true);
                 }
 
@@ -399,7 +408,8 @@ public class ChannelingServer implements AutoCloseable {
     }
 
     private void closeSocketSilently(ChannelingSocket socketResp) {
-        socketResp.close(s->{});
+        socketResp.close(s -> {
+        });
     }
 
     public boolean isReadBody() {
@@ -434,7 +444,6 @@ public class ChannelingServer implements AutoCloseable {
     public void close() throws Exception {
         this.stop();
     }
-
 
 
     public ErrorCallback getOnReadError() {

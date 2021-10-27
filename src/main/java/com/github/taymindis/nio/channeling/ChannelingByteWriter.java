@@ -51,6 +51,7 @@ public class ChannelingByteWriter {
         write(byteBuffer, 0, byteBuffer.limit() - byteBuffer.position());
     }
 
+    @Deprecated
     public void write(byte[] data, int offset, int length) throws IOException {
         if (offset < 0 || offset + length > data.length || length < 0) {
             throw new IndexOutOfBoundsException();
@@ -65,6 +66,7 @@ public class ChannelingByteWriter {
         size += length;
     }
 
+    @Deprecated
     public void write(byte[] data) throws IOException {
         write(data, 0, data.length);
     }

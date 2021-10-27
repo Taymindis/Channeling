@@ -65,6 +65,19 @@ public class BytesHelper {
         return true;
     }
 
+    public static boolean equals(byte[] data, byte[] target, int startingPoint, int length) {
+        if (startingPoint < 0 || target == null || data == null) {
+            return false;
+        }
+
+        for (int i = startingPoint, j = 0, sz = startingPoint + length ; i < sz; i++, j++) {
+            if (data[i] != target[j]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public static boolean contains(byte[] data, byte[] target) {
         return indexOf(data, target) != -1;
     }
