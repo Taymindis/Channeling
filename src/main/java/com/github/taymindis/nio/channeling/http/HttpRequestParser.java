@@ -10,13 +10,11 @@ import java.nio.charset.StandardCharsets;
 
 public class HttpRequestParser {
     private String headerContent;
-    private int bodyOffset = -1;
-    private static final int DEFAULT_SIZE = 2048;
-
-    private int currLen = 0, expectedLen = -1;
+    private int bodyOffset = -1, expectedLen = -1;
     private boolean doneParsed;
     private ChannelingByteWriter byteWriter;
-    private String body;
+
+    private static final int DEFAULT_SIZE = 2048;
 
     public HttpRequestParser() {
         this(DEFAULT_SIZE);
@@ -25,7 +23,6 @@ public class HttpRequestParser {
     public HttpRequestParser(int initSize) {
         doneParsed = false;
         byteWriter = new ChannelingByteWriter(initSize);
-        body = null;
     }
 
     public String getHeaderContent() {
@@ -56,20 +53,12 @@ public class HttpRequestParser {
         this.bodyOffset = bodyOffset;
     }
 
-    public int getCurrLen() {
-        return currLen;
-    }
-
     public int getExpectedLen() {
         return expectedLen;
     }
 
     public void setExpectedLen(int expectedLen) {
         this.expectedLen = expectedLen;
-    }
-
-    public void fillCurrLen(int length) {
-        currLen += length;
     }
 
     public boolean isDoneParsed() {

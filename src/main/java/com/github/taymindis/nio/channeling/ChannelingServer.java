@@ -359,22 +359,19 @@ public class ChannelingServer implements AutoCloseable {
         int requiredLength;
         int bodyOffset = message.getBodyOffset();
 
-        if (isReadBody()) {
-            message.writeBytes(bb);
-        }
-
-        String consumeMessage = parseToString(message.getRawBytes());
-
-        message.fillCurrLen(consumeMessage.length());
+        message.writeBytes(bb);
 
         if (bodyOffset == -1) {
-            if ((bodyOffset = consumeMessage.indexOf("\r\n\r\n")) > 0) {
+            ChannelingByteWriter byteWriter = message.getByteWriter();
+            if ((bodyOffset = byteWriter.indexOf("\r\n\r\n".getBytes())) > 0) {
                 bodyOffset += 4;
-            } else if ((bodyOffset = consumeMessage.indexOf("\n\n")) > 0) {
+            } else if ((bodyOffset = byteWriter.indexOf("\n\n".getBytes())) > 0) {
                 bodyOffset += 2;
             }
-            message.setBodyOffset(bodyOffset);
             if (bodyOffset > 0) {
+                message.setBodyOffset(bodyOffset);
+                String consumeMessage = parseToString(message.getRawBytes());
+
                 String headersContent = consumeMessage.substring(0, bodyOffset);
 
                 message.setHeaderContent(headersContent);
