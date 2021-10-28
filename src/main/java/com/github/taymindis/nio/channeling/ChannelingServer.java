@@ -245,82 +245,86 @@ public class ChannelingServer implements AutoCloseable {
                 if (!messageParser.isDoneParsed()) {
                     socketRead.setContext(messageParser);
                     eagerRead(readBuffer, socketRead);
-                } else {
-//                    socketRead.noEagerRead();
-                    HttpRequestMessage request = convertMessageToHttpRequestMessage(socketRead, messageParser);
-                    String vHost = request.getHeaderMap().get("Host");
-                    if (vHost == null) {
-                        vHost = DEFAULT_VHOST_NAME;
-                    }
-                    this.vHostRequestListener
-                            .getOrDefault(vHost, defaultRequestListener)
-//                    defaultRequestListener
-                            .handleRequest(request, new ResponseCallback() {
-                                private Deque<QueueWriteBuffer> buffQueue = new ArrayDeque<>();
-
-                                @Override
-                                public void write(HttpResponseMessage responseMessage, Charset charset, Then $then) {
-                                    if (charset == null) {
-                                        charset = StandardCharsets.UTF_8;
-                                    }
-                                    try {
-                                        String responseMsg = massageResponseToString(responseMessage);
-                                        ByteBuffer writeBuffer = ByteBuffer.wrap(responseMsg.getBytes(charset));
-                                        socketRead.write(writeBuffer, socket -> {
-                                                    this.flush(socket, $then);
-                                                },
-                                                ChannelingServer.this.onWriteError);
-                                    } catch (Exception e) {
-                                        ChannelingServer.this.onWriteError.error(socketRead, e);
-                                    }
-                                }
-
-                                @Override
-                                public void streamWrite(ByteBuffer b, Then $then) {
-                                    if (queueForWrite(b, $then) != null) {
-                                        socketRead.write(b, socket -> {
-                                                    this.flush(socket, $then);
-                                                },
-                                                ChannelingServer.this.onWriteError);
-                                    }
-                                }
-
-                                private void flush(ChannelingSocket channelingSocket, Then callback) {
-                                    ByteBuffer currWriteBuff = channelingSocket.getCurrWritingBuffer();
-                                    if (currWriteBuff.hasRemaining()) {
-                                        socketRead.write(currWriteBuff, s -> this.flush(s, callback));
-                                    } else {
-                                        callback.callback(socketRead);
-                                        QueueWriteBuffer qwb;
-                                        if ((qwb = queueForWrite(null, null)) != null) {
-                                            socketRead.write(qwb.getNb(), socket -> {
-                                                        this.flush(socket, qwb.get$then());
-                                                    },
-                                                    ChannelingServer.this.onWriteError);
-                                        }
-                                    }
-                                }
-
-                                private synchronized QueueWriteBuffer queueForWrite(ByteBuffer nb, Then $then) {
-                                    QueueWriteBuffer qwb;
-                                    if (nb == null) { // Means remove first one and take second one
-                                        buffQueue.poll();
-                                        if (buffQueue.isEmpty())
-                                            return null;
-                                        return buffQueue.peek();
-                                    } else {
-                                        qwb = new QueueWriteBuffer(nb, $then);
-                                        if (buffQueue.isEmpty()) {
-                                            buffQueue.offer(qwb);
-                                            return qwb;
-                                        } else {
-                                            buffQueue.offer(qwb);
-                                            return null;
-                                        }
-                                    }
-                                }
-                            });
+                    return;
+                }else if (readBody && messageParser.getByteWriter().size() < messageParser.getExpectedLen() ) {
+                    socketRead.setContext(messageParser);
+                    eagerRead(readBuffer, socketRead);
+                    return;
                 }
+
+                HttpRequestMessage request = convertMessageToHttpRequestMessage(socketRead, messageParser);
+                String vHost = request.getHeaderMap().get("Host");
+                if (vHost == null) {
+                    vHost = DEFAULT_VHOST_NAME;
+                }
+                this.vHostRequestListener
+                        .getOrDefault(vHost, defaultRequestListener)
+//                    defaultRequestListener
+                        .handleRequest(request, new ResponseCallback() {
+                            private Deque<QueueWriteBuffer> buffQueue = new ArrayDeque<>();
+
+                            @Override
+                            public void write(HttpResponseMessage responseMessage, Charset charset, Then $then) {
+                                if (charset == null) {
+                                    charset = StandardCharsets.UTF_8;
+                                }
+                                try {
+                                    String responseMsg = massageResponseToString(responseMessage);
+                                    ByteBuffer writeBuffer = ByteBuffer.wrap(responseMsg.getBytes(charset));
+                                    socketRead.write(writeBuffer, socket -> {
+                                                this.flush(socket, $then);
+                                            },
+                                            ChannelingServer.this.onWriteError);
+                                } catch (Exception e) {
+                                    ChannelingServer.this.onWriteError.error(socketRead, e);
+                                }
+                            }
+
+                            @Override
+                            public void streamWrite(ByteBuffer b, Then $then) {
+                                if (queueForWrite(b, $then) != null) {
+                                    socketRead.write(b, socket -> {
+                                                this.flush(socket, $then);
+                                            },
+                                            ChannelingServer.this.onWriteError);
+                                }
+                            }
+
+                            private void flush(ChannelingSocket channelingSocket, Then callback) {
+                                ByteBuffer currWriteBuff = channelingSocket.getCurrWritingBuffer();
+                                if (currWriteBuff.hasRemaining()) {
+                                    socketRead.write(currWriteBuff, s -> this.flush(s, callback));
+                                } else {
+                                    callback.callback(socketRead);
+                                    QueueWriteBuffer qwb;
+                                    if ((qwb = queueForWrite(null, null)) != null) {
+                                        socketRead.write(qwb.getNb(), socket -> {
+                                                    this.flush(socket, qwb.get$then());
+                                                },
+                                                ChannelingServer.this.onWriteError);
+                                    }
+                                }
+                            }
+
+                            private synchronized QueueWriteBuffer queueForWrite(ByteBuffer nb, Then $then) {
+                                QueueWriteBuffer qwb;
+                                if (nb == null) { // Means remove first one and take second one
+                                    buffQueue.poll();
+                                    if (buffQueue.isEmpty())
+                                        return null;
+                                    return buffQueue.peek();
+                                } else {
+                                    qwb = new QueueWriteBuffer(nb, $then);
+                                    if (buffQueue.isEmpty()) {
+                                        buffQueue.offer(qwb);
+                                        return qwb;
+                                    } else {
+                                        buffQueue.offer(qwb);
+                                        return null;
+                                    }
+                                }
+                            }
+                        });
 
             } else if (numRead == 0) {
                 eagerRead(readBuffer, socketRead);
