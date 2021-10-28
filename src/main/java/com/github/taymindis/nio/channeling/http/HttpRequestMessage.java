@@ -51,6 +51,17 @@ public class HttpRequestMessage {
         this.hasBody = hasBody;
     }
 
+    public ChannelingBytes getBody() {
+        if (this.hasBody) {
+            try {
+                return clientReadWriter.toChannelingBytes(bodyOffset);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        return null;
+    }
+
     public void readBody(Consumer<ChannelingBytes> bodyConsumer) throws IllegalStateException {
         try {
             this.bodyConsumer = bodyConsumer;
