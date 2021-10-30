@@ -275,6 +275,11 @@ public class DefaultChannelingBinding implements ChannelingBinding {
             String bridgePath = exchange.getIn().getHeader(Exchange.HTTP_URI, String.class);
             if(bridgePath != null) {
                uri = uri.concat(bridgePath);
+            } else {
+                bridgePath = exchange.getIn().getHeader(Exchange.HTTP_PATH, String.class);
+                if(bridgePath != null) {
+                    uri = uri.concat(bridgePath);
+                }
             }
         }
 
