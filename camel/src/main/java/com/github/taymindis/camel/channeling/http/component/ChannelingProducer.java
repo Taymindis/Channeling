@@ -259,7 +259,9 @@ public class ChannelingProducer extends DefaultProducer {
                             getEndpoint().getHeaderFilterStrategy());
                     binding.populateResponseBody($exchange, httpResponse);
 
-                    /** TODO CallbackRoute **/
+                } catch (Exception e) {
+                    doFailure(e, $exchange, binding, requestBuilder);
+                } finally {
                     final Exchange finalExchange;
                     if (hasAfterProxied) {
                         finalExchange = fluentProducerTemplate
@@ -269,35 +271,36 @@ public class ChannelingProducer extends DefaultProducer {
                     } else {
                         finalExchange = $exchange;
                     }
-
                     tryProxyResponse(finalExchange);
-
-                } catch (Exception e) {
-                    doFailure(e, $exchange, binding, requestBuilder);
                 }
 
             }
 
             @Override
             public void error(Exception e, ChannelingSocket socket) {
-                doFailure(e, (Exchange) socket.getContext(), binding, requestBuilder);
+                Exchange finalExchange = (Exchange) socket.getContext();
+                doFailure(e, finalExchange, binding, requestBuilder);
+                if (hasAfterProxied) {
+                    finalExchange = fluentProducerTemplate
+                            .to(callBackRoute)
+                            .withExchange(finalExchange)
+                            .send();
+                }
+
+                tryProxyResponse(finalExchange);
             }
         });
     }
 
     private void doFailure(Exception e, Exchange exchange, ChannelingBinding binding, HttpRequestBuilder requestBuilder) {
-        try {
-            if (getEndpoint().isThrowExceptionOnFailure()) {
-                exchange.setException(binding.catchChannelingCallFailedException(
-                        getEndpoint(),
-                        exchange,
-                        requestBuilder.getPath(),
-                        e.getMessage()));
-            } else {
-                exchange.setException(e);
-            }
-        } finally {
-            tryProxyResponse(exchange);
+        if (getEndpoint().isThrowExceptionOnFailure()) {
+            exchange.setException(binding.catchChannelingCallFailedException(
+                    getEndpoint(),
+                    exchange,
+                    requestBuilder.getPath(),
+                    e.getMessage()));
+        } else {
+            exchange.setException(e);
         }
     }
 
