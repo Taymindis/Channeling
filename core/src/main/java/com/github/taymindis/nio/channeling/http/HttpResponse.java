@@ -1,5 +1,6 @@
 package com.github.taymindis.nio.channeling.http;
 
+import com.github.taymindis.nio.channeling.ChannelingBytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,7 +21,7 @@ import static com.github.taymindis.nio.channeling.http.HttpMessageHelper.decompr
 public class HttpResponse {
     private static Logger log = LoggerFactory.getLogger(HttpResponse.class);
     private String headers;
-    private byte[] rawBytes;
+    private ChannelingBytes rawBytes;
     private int bodyOffset;
     private HttpResponseType responseType;
     private ContentEncodingType contentEncodingType;
@@ -57,13 +58,13 @@ public class HttpResponse {
         if (responseType == HttpResponseType.TRANSFER_CHUNKED) {
             return toChunkedBytes2();
         }
-        return Arrays.copyOfRange(rawBytes, bodyOffset, rawBytes.length);
+        return Arrays.copyOfRange(rawBytes.getBuff(), bodyOffset, rawBytes.getLength());
     }
 
     @Deprecated
     private byte[] toChunkedBytes() {
         StringBuilder clearedHexaResponse = new StringBuilder();
-        String respBody = new String(rawBytes, StandardCharsets.UTF_8).substring(bodyOffset);
+        String respBody = new String(rawBytes.getBuff(), rawBytes.getOffset(), rawBytes.getLength(), StandardCharsets.UTF_8).substring(bodyOffset);
 
         String[] hexaAndContent = respBody.split("\\r?\\n", 2);
 
@@ -89,10 +90,10 @@ public class HttpResponse {
 
 
     private byte[] toChunkedBytes2() {
-        ByteBuffer byteBuffer = ByteBuffer.allocate(rawBytes.length);
+        ByteBuffer byteBuffer = ByteBuffer.allocate(rawBytes.getLength());
         ByteBuffer hextBytes = ByteBuffer.allocate(128);
-        ByteBuffer recleanByteBuff = ByteBuffer.allocate(rawBytes.length);
-        byteBuffer.put(rawBytes);
+        ByteBuffer recleanByteBuff = ByteBuffer.allocate(rawBytes.getLength());
+        byteBuffer.put(rawBytes.getBuff(), rawBytes.getOffset(), rawBytes.getLength());
         byteBuffer.flip().position(bodyOffset);
 
         char c;
@@ -155,11 +156,11 @@ public class HttpResponse {
 //        return clearedHexaResponse.toString().getBytes();
     }
 
-    public byte[] getRawBytes() {
+    public ChannelingBytes getRawBytes() {
         return rawBytes;
     }
 
-    public void setRawBytes(byte[] rawBytes) {
+    public void setRawBytes(ChannelingBytes rawBytes) {
         this.rawBytes = rawBytes;
     }
 

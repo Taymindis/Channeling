@@ -220,7 +220,7 @@ public class HttpSingleRequest implements HttpRequest {
         if (len>=7 && BytesHelper.equals(consumedBuffers.getBuff(),
                 "\r\n0\r\n\r\n".getBytes(), consumedBuffers.getOffset() + (consumedBuffers.getLength() - 7), 7)) {
             channelingSocket.noEagerRead();
-            httpResponse.setRawBytes(consumedBuffers.toByteArray());
+            httpResponse.setRawBytes(consumedBuffers);
             httpResponse.setBodyOffset(bodyOffset);
             updateResponseType(httpResponse);
 
@@ -338,7 +338,7 @@ public class HttpSingleRequest implements HttpRequest {
     private void contentLengthResponse(ChannelingSocket channelingSocket) throws Exception {
         if (totalRead >= requiredLength) {
             channelingSocket.noEagerRead();
-            httpResponse.setRawBytes(responseWriter.toChannelingBytes().toByteArray());
+            httpResponse.setRawBytes(responseWriter.toChannelingBytes());
             httpResponse.setBodyOffset(bodyOffset);
             updateResponseType(httpResponse);
 
