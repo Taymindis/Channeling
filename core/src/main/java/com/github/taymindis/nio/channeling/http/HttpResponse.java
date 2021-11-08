@@ -4,19 +4,15 @@ import com.github.taymindis.nio.channeling.ChannelingBytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.zip.GZIPInputStream;
 
 import static com.github.taymindis.nio.channeling.http.HttpMessageHelper.decompress;
+
 
 public class HttpResponse {
     private static Logger log = LoggerFactory.getLogger(HttpResponse.class);
@@ -51,14 +47,14 @@ public class HttpResponse {
             }
         }
 
-        return new String(getBodyBytes(), charset);
+        return new String(rawBytes.getBuff(), bodyOffset, rawBytes.getLength() - bodyOffset, charset);
     }
 
-    public byte[] getBodyBytes() {
+    public ChannelingBytes getBodyBytes() {
         if (responseType == HttpResponseType.TRANSFER_CHUNKED) {
             return toChunkedBytes2();
         }
-        return Arrays.copyOfRange(rawBytes.getBuff(), bodyOffset, rawBytes.getLength());
+        return rawBytes; // Arrays.copyOfRange(rawBytes.getBuff(), bodyOffset, rawBytes.getLength());
     }
 
     @Deprecated
@@ -89,12 +85,12 @@ public class HttpResponse {
     }
 
 
-    private byte[] toChunkedBytes2() {
-        ByteBuffer byteBuffer = ByteBuffer.allocate(rawBytes.getLength());
+    private ChannelingBytes toChunkedBytes2() {
+        ByteBuffer byteBuffer = ByteBuffer.wrap(rawBytes.getBuff(), rawBytes.getOffset(), rawBytes.getLength());  // ByteBuffer.allocate(rawBytes.getLength());
         ByteBuffer hextBytes = ByteBuffer.allocate(128);
         ByteBuffer recleanByteBuff = ByteBuffer.allocate(rawBytes.getLength());
-        byteBuffer.put(rawBytes.getBuff(), rawBytes.getOffset(), rawBytes.getLength());
-        byteBuffer.flip().position(bodyOffset);
+//        byteBuffer.put(rawBytes.getBuff(), rawBytes.getOffset(), rawBytes.getLength());
+        byteBuffer.position(bodyOffset);
 
         char c;
         while (byteBuffer.hasRemaining()) {
@@ -133,9 +129,10 @@ public class HttpResponse {
         }
 
         recleanByteBuff.flip();
-        byte[] recleanBytes = new byte[recleanByteBuff.remaining()];
-        recleanByteBuff.get(recleanBytes);
-        return recleanBytes;
+//        byte[] recleanBytes = new byte[recleanByteBuff.remaining()];
+//        recleanByteBuff.get(recleanBytes);
+        return new ChannelingBytes(recleanByteBuff.array(),
+                recleanByteBuff.position(), recleanByteBuff.remaining());
 
 
 //        String[] hexaAndContent = respBody.split("\\r?\\n", 2);

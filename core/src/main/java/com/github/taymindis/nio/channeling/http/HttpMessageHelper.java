@@ -160,16 +160,45 @@ public class HttpMessageHelper {
         return (compressed[0] == (byte) (GZIPInputStream.GZIP_MAGIC)) && (compressed[1] == (byte) (GZIPInputStream.GZIP_MAGIC >> 8));
     }
 
-    public static String decompress(final byte[] compressed, Charset charset) throws IOException {
-        final StringBuilder outStr = new StringBuilder();
+//    public static String decompress(final byte[] compressed, Charset charset) throws IOException {
+//        final StringBuilder outStr = new StringBuilder();
+//        final CharBuffer outputBuffer = CharBuffer.allocate(1024);
+//        outputBuffer.clear();
+//        if ((compressed == null) || (compressed.length == 0)) {
+//            return "";
+//        }
+//
+//        if (isCompressed(compressed)) {
+//            try (final GZIPInputStream gis = new GZIPInputStream(new ByteArrayInputStream(compressed));
+//                 final InputStreamReader inputStreamReader = new InputStreamReader(gis, charset)
+//            ) {
+//                while (inputStreamReader.read(outputBuffer) > 0) {
+//                    outputBuffer.flip();
+//                    char[] ca = new char[outputBuffer.limit() - outputBuffer.position()];
+//                    outputBuffer.get(ca);
+//                    outStr.append(ca);
+//                    if (!outputBuffer.hasRemaining()) {
+//                        outputBuffer.clear();
+//                    }
+//                }
+//            }
+//        } else {
+//            outStr.append(Arrays.toString(compressed));
+//        }
+//        return outStr.toString();
+//    }
+
+    public static String decompress(final ChannelingBytes compressed, Charset charset) throws IOException {
         final CharBuffer outputBuffer = CharBuffer.allocate(1024);
         outputBuffer.clear();
-        if ((compressed == null) || (compressed.length == 0)) {
+        if ((compressed == null) || (compressed.getLength() == 0)) {
             return "";
         }
 
-        if (isCompressed(compressed)) {
-            try (final GZIPInputStream gis = new GZIPInputStream(new ByteArrayInputStream(compressed));
+        if (isCompressed(compressed.getBuff())) {
+            final StringBuilder outStr = new StringBuilder();
+            try (final GZIPInputStream gis = new GZIPInputStream(new ByteArrayInputStream(compressed.getBuff(),
+                    compressed.getOffset(), compressed.getLength()));
                  final InputStreamReader inputStreamReader = new InputStreamReader(gis, charset)
             ) {
                 while (inputStreamReader.read(outputBuffer) > 0) {
@@ -182,10 +211,13 @@ public class HttpMessageHelper {
                     }
                 }
             }
-        } else {
-            outStr.append(Arrays.toString(compressed));
+            return outStr.toString();
         }
-        return outStr.toString();
+
+
+        return new String(compressed.getBuff(), compressed.getOffset(), compressed.getLength());
+
+
     }
 
 }
