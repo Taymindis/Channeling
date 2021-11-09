@@ -49,7 +49,9 @@ public class DefaultChannelingBinding implements ChannelingBinding {
         this.isBridgeEnpoint = true;
     }
 
-    /** Consumer Scope **/
+    /**
+     * Consumer Scope
+     **/
     @Override
     public Message toCamelMessage(HttpRequestMessage requestMessage, Exchange exchange) {
         Message result = new DefaultMessage(exchange);
@@ -86,10 +88,10 @@ public class DefaultChannelingBinding implements ChannelingBinding {
         String query = getQueryParameters(requestMessage);
         //continue if the map is not empty, otherwise there are no params
         if (!query.isEmpty() && query.contains("&")) {
-           for(String kvs : query.split("&")) {
-               String[] kv = kvs.split("=", 2);
-               headersMap.put(kv[0], kv[1]);
-           }
+            for (String kvs : query.split("&")) {
+                String[] kv = kvs.split("=", 2);
+                headersMap.put(kv[0], kv[1]);
+            }
         }
 
 
@@ -97,7 +99,7 @@ public class DefaultChannelingBinding implements ChannelingBinding {
         // NOTE: these headers is applied using the same logic as camel-http/camel-jetty to be consistent
         headersMap.put(Exchange.HTTP_METHOD, requestMessage.getMethod());
         // strip query parameters from the uri
-        headersMap.put(Exchange.HTTP_URL,  getHTTPUrl(requestMessage));
+        headersMap.put(Exchange.HTTP_URL, getHTTPUrl(requestMessage));
         // uri is without the host and port
         headersMap.put(Exchange.HTTP_URI, requestMessage.getPath());
         headersMap.put(Exchange.HTTP_QUERY, query);
@@ -105,7 +107,7 @@ public class DefaultChannelingBinding implements ChannelingBinding {
     }
 
     @Override
-    public HttpResponseMessage toHttpResponseHeader(Message message, HeaderFilterStrategy headerFilterStrategy)  {
+    public HttpResponseMessage toHttpResponseHeader(Message message, HeaderFilterStrategy headerFilterStrategy) {
         HttpResponseMessage responseMessage = new HttpResponseMessage();
         Exchange camelExchange = message.getExchange();
         Object body = message.getBody();
@@ -156,15 +158,15 @@ public class DefaultChannelingBinding implements ChannelingBinding {
 //                // force content type to be serialized java object
 //                message.setHeader(Exchange.CONTENT_TYPE, "application/x-java-serialized-object");
 //            } else {
-                // we failed due an exception so print it as plain text
-                StringWriter sw = new StringWriter();
-                PrintWriter pw = new PrintWriter(sw);
-                exception.printStackTrace(pw);
+            // we failed due an exception so print it as plain text
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            exception.printStackTrace(pw);
 
-                // the body should then be the stacktrace
-                body = ByteBuffer.wrap(sw.toString().getBytes());
-                // force content type to be text/plain as that is what the stacktrace is
-                message.setHeader(Exchange.CONTENT_TYPE, "text/plain");
+            // the body should then be the stacktrace
+            body = ByteBuffer.wrap(sw.toString().getBytes());
+            // force content type to be text/plain as that is what the stacktrace is
+            message.setHeader(Exchange.CONTENT_TYPE, "text/plain");
 //            }
 
             // and mark the exception as failure handled, as we handled it by returning it as the response
@@ -193,7 +195,7 @@ public class DefaultChannelingBinding implements ChannelingBinding {
         //copy headers from Message to Response
         Exchange camelExchange = message.getExchange();
         TypeConverter tc = camelExchange.getContext().getTypeConverter();
-        Map<String,Object> filteredHeaders = new HashMap<String,Object>();
+        Map<String, Object> filteredHeaders = new HashMap<String, Object>();
         for (Map.Entry<String, Object> entry : message.getHeaders().entrySet()) {
             String key = entry.getKey();
             Object value = entry.getValue();
@@ -235,22 +237,22 @@ public class DefaultChannelingBinding implements ChannelingBinding {
     private String getHTTPUrl(HttpRequestMessage requestMessage) {
         String path = requestMessage.getPath();
         int qpIndex = path.indexOf("?");
-        if(qpIndex < 0) {
+        if (qpIndex < 0) {
             return path;
         }
         return path.substring(0, qpIndex);
     }
 
     private String getQueryParameters(HttpRequestMessage requestMessage) {
-      String path = requestMessage.getPath();
+        String path = requestMessage.getPath();
 
-      int qpIndex = path.indexOf("?") + 1;
+        int qpIndex = path.indexOf("?") + 1;
 
-      if(qpIndex <= 0){
-          return "";
-      }
+        if (qpIndex <= 0) {
+            return "";
+        }
 
-      return path.substring(qpIndex);
+        return path.substring(qpIndex);
     }
 
 
@@ -271,19 +273,25 @@ public class DefaultChannelingBinding implements ChannelingBinding {
         URI httpUri = endpoint.getHttpUri();
 
         String uri = httpUri.getPath();
+
+        if (uri == null) {
+            uri = "/";
+        } else if (!uri.endsWith("/")) {
+            uri = uri.concat("/");
+        }
+
         if (isBridgeEnpoint) {
             String bridgePath = exchange.getIn().getHeader(Exchange.HTTP_URI, String.class);
-            if(bridgePath != null) {
-               uri = uri.concat(bridgePath);
-            } else {
+
+            if(bridgePath == null ) {
                 bridgePath = exchange.getIn().getHeader(Exchange.HTTP_PATH, String.class);
-                if(bridgePath != null) {
-                    if (!bridgePath.startsWith("/")) {
-                        uri = uri.concat("/").concat(bridgePath);
-                    } else {
-                        uri = uri.concat(bridgePath);
-                    }
+            }
+
+            if (bridgePath != null) {
+                if (bridgePath.startsWith("/")) {
+                    bridgePath = bridgePath.substring(1);
                 }
+                uri = uri.concat(bridgePath);
             }
         }
 
@@ -449,7 +457,7 @@ public class DefaultChannelingBinding implements ChannelingBinding {
 
 
             String builtBody = builder.getBody();
-            if(builtBody != null) {
+            if (builtBody != null) {
                 builder.addHeader("Content-Length", String.valueOf(builtBody.length()));
             }
         }

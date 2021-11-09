@@ -38,16 +38,18 @@ public class HttpResponse {
     }
 
     public String getBodyContent(Charset charset) {
+        ChannelingBytes bodyBytes = getBodyBytes();
+
         if (contentEncodingType == ContentEncodingType.GZIP) {
             try {
-                return decompress(getBodyBytes(), StandardCharsets.UTF_8);
+                return decompress(bodyBytes, StandardCharsets.UTF_8);
             } catch (IOException e) {
                 log.error("Error while decompressing the GZIP", e);
                 e.printStackTrace();
             }
         }
 
-        return new String(rawBytes.getBuff(), bodyOffset, rawBytes.getLength() - bodyOffset, charset);
+        return new String(bodyBytes.getBuff(), bodyBytes.getOffset(), bodyBytes.getLength(), charset);
     }
 
     public ChannelingBytes getBodyBytes() {
