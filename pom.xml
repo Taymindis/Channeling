@@ -6,7 +6,7 @@
 
     <groupId>com.github.taymindis</groupId>
     <artifactId>Channeling</artifactId>
-    <version>${revision}</version>
+    <version>2.3.1</version>
     <modules>
         <module>core</module>
         <module>camel</module>
@@ -37,17 +37,17 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
+    <issueManagement>
+        <system>GitHub</system>
+        <url>https://github.com/Taymindis/Channeling/issues</url>
+    </issueManagement>
+
     <url>https://github.com/Taymindis/Channeling</url>
     <scm>
         <url>https://github.com/Taymindis/Channeling.git</url>
         <connection>scm:git:git://github.com/Taymindis/Channeling.git</connection>
         <developerConnection>scm:git:git://github.com/Taymindis/Channeling.git</developerConnection>
     </scm>
-    <issueManagement>
-        <system>GitHub</system>
-        <url>https://github.com/Taymindis/Channeling/issues</url>
-    </issueManagement>
-
     <developers>
         <developer>
             <id>taymindis</id>
@@ -172,30 +172,30 @@
             </plugin>
 
 
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>flatten-maven-plugin</artifactId>
-                <version>1.2.7</version>
-                <configuration>
-                    <updatePomFile>true</updatePomFile>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>flatten</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>flatten</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>flatten.clean</id>
-                        <phase>clean</phase>
-                        <goals>
-                            <goal>clean</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
+<!--            <plugin>-->
+<!--                <groupId>org.codehaus.mojo</groupId>-->
+<!--                <artifactId>flatten-maven-plugin</artifactId>-->
+<!--                <version>1.2.7</version>-->
+<!--                <configuration>-->
+<!--                    <updatePomFile>true</updatePomFile>-->
+<!--                </configuration>-->
+<!--                <executions>-->
+<!--                    <execution>-->
+<!--                        <id>flatten</id>-->
+<!--                        <phase>process-resources</phase>-->
+<!--                        <goals>-->
+<!--                            <goal>flatten</goal>-->
+<!--                        </goals>-->
+<!--                    </execution>-->
+<!--                    <execution>-->
+<!--                        <id>flatten.clean</id>-->
+<!--                        <phase>clean</phase>-->
+<!--                        <goals>-->
+<!--                            <goal>clean</goal>-->
+<!--                        </goals>-->
+<!--                    </execution>-->
+<!--                </executions>-->
+<!--            </plugin>-->
 
         </plugins>
     </build>
