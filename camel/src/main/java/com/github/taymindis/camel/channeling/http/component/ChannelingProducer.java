@@ -33,8 +33,10 @@ import java.util.Map;
 
 import static com.github.taymindis.camel.channeling.http.component.ChannelingConsumer.*;
 
-/**
- *
+/*
+ * This is not async producer, it's single thread route module,
+ * This has to be use with Channeling from-endpoint,
+ * Alternatively, please use Async Processor to do the job
  */
 public class ChannelingProducer extends DefaultProducer {
 

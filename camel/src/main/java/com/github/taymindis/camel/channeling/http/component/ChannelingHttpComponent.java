@@ -28,7 +28,10 @@ import java.security.KeyStore;
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.Map;
-
+/**
+ * Represents the component that manages {@link ChannelingEndpoint}.
+ */
+@Metadata(label = "verifiers", enums = "parameters,connectivity")
 @Component("channeling")
 public class ChannelingHttpComponent extends HeaderFilterStrategyComponent implements SSLContextParametersAware {
 
