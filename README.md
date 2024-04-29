@@ -1,4 +1,11 @@
-# Channeling
+
+# Project Has Moved
+
+This project idea has moved to a new location. Please visit the new repository at [new repository link](https://github.com/blast-network/blast.io).
+
+if you are owner, please visit to [this link](https://github.com/Taymindis/blast-ingress)
+
+### Channeling (archive)
 The java Nio Based, Async Non Block tcp / http client.
 
 
